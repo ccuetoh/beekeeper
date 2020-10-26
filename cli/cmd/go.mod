@@ -7,4 +7,4 @@ require (
 	github.com/spf13/cobra v1.1.1
 )
 
-replace github.com/CamiloHernandez/beekeeper/lib => ../lib
+replace github.com/CamiloHernandez/beekeeper/lib => ./../../lib
