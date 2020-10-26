@@ -26,9 +26,14 @@ package beekeeper
 type Status int
 
 const (
-	StatusNone = iota // StatusNone nil value for Status
-	StatusIDLE // StatusIDLE node is IDLE
-	StatusWorking // StatusWorking node is working on a job
+	// StatusNone nil value for Status
+	StatusNone = iota
+
+	// StatusIDLE node is IDLE
+	StatusIDLE
+
+	// StatusWorking node is working on a job
+	StatusWorking
 )
 
 // String returns a string representation of a Status.

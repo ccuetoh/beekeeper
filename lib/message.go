@@ -35,13 +35,26 @@ import (
 type Operation int
 
 const (
-	OperationNone = iota // OperationNone nil value for operations
-	OperationStatus // OperationStatus ask a node for a status report
-	OperationJobTransfer // OperationJobTransfer transfer a job via the Data field
-	OperationTransferFailed // OperationTransferFailed transfer failed, Data contains the details
-	OperationTransferAcknowledge // OperationTransferAcknowledge transfer was successful
-	OperationJobExecute // OperationJobExecute run the local job
-	OperationJobResult // OperationJobResult job ran and the details come in the Data
+	// OperationNone nil value for operations
+	OperationNone = iota
+
+	// OperationStatus ask a node for a status report
+	OperationStatus
+
+	// OperationJobTransfer transfer a job via the Data field
+	OperationJobTransfer
+
+	// OperationTransferFailed transfer failed, Data contains the details
+	OperationTransferFailed
+
+	// OperationTransferAcknowledge transfer was successful
+	OperationTransferAcknowledge
+
+	// OperationJobExecute run the local job
+	OperationJobExecute
+
+	// OperationJobResult job ran and the details come in the Data
+	OperationJobResult
 )
 
 // String returns a string representation of the Operation.
