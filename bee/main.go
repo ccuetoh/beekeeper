@@ -21,7 +21,7 @@
  */
 package main
 
-import "github.com/CamiloHernandez/beekeeper/cli/cmd"
+import "github.com/CamiloHernandez/beekeeper/bee/cmd"
 
 func main() {
 	cmd.Execute()
