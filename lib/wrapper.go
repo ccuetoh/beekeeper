@@ -24,7 +24,6 @@ package beekeeper
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 )
@@ -49,7 +48,7 @@ func WrapJob(job func(*Task)) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			newErrorResult(errors.New(fmt.Sprintf("%s", r))).printEncode()
+			newErrorResult(fmt.Errorf("%s", r)).printEncode()
 		}
 	}()
 

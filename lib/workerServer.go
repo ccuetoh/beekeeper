@@ -24,7 +24,7 @@ package beekeeper
 
 import "log"
 
-// StartPrimary runs a server for a worker node and blocks. An optional Config can be provided. If none is passed,
+// StartWorker runs a server for a worker node and blocks. An optional Config can be provided. If none is passed,
 // a default configuration is used.
 func StartWorker(configs ...Config) error {
 	c := make(chan Message)

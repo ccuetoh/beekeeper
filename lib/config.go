@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	DefaultPort          = 2020 // Defines the default port for Beekeeper servers
-	DefaultScanTime      = time.Second * 2 // Defines the scan time to be used by scan functions
-	DefaultWatchdogSleep = time.Second * 15 // Defines the time between node pings for the watchdog
+	DefaultPort          = 2020 // DefaultPort is the default port for Beekeeper servers
+	DefaultScanTime      = time.Second * 2 // DefaultScanTime is the scan time to be used by scan functions
+	DefaultWatchdogSleep = time.Second * 15 // DefaultWatchdogSleep is the time between node pings for the watchdog
 )
 
 // Config holds the configurations for a worker or a primary node.
