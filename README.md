@@ -68,22 +68,22 @@ To run a worker server execute `bee start worker` in the command prompt. This co
 ### Creating a Job
 To create a new Job we need to define a function implementing the `func (t *beekeeper.Task)` prototype. The Task struct will hold the information needed to run the Job, such as additional data and fields to return our result.
 
-As an example we'll cluster a job that finds a bunch of primes number and returns them to the primary node:
+As an example we'll cluster a job that finds a bunch of primes numbers and returns them to the primary node:
 ```go 
-func RandomPrime(t *beekeeper.Task) {  
-   var primes []int64  
-  r := rand.New(rand.NewSource(time.Now().Unix()))  
-  
-   for x := 0; x < 10000; x++ {  
-      n := r.Int63n(10000000000000000)  
-  
-      if isPrime(n) {  
-         primes = append(primes, n)  
-      }  
-   }  
-  
-   t.Returns["primes"] = primes  
-}  
+func RandomPrime(t *beekeeper.Task) {
+	var primes []int64
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+
+	for len(primes) < 10000 {
+		n := r.Int63n(10000000000000000)
+
+		if isPrime(n) {
+			primes = append(primes, n)
+		}
+	}
+
+	t.Returns["primes"] = primes
+}
   
 func isPrime(n int64) bool {  
    return big.NewInt(n).ProbablyPrime(0)  
