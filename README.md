@@ -54,7 +54,7 @@ go get github.com/CamiloHernandez/beekeeper/lib
 ### Installing the CLI tool
 The command-line tool can be installed using go get as follows:
 ```bash
-go get github.com/CamiloHernandez/beekeeper/cli
+go get github.com/CamiloHernandez/beekeeper/bee
 ```
 
 <!-- Usage -->
