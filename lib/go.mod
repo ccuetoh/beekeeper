@@ -1,4 +1,4 @@
-module "github.com/CamiloHernandez/beekeeper/lib"
+module github.com/CamiloHernandez/beekeeper/lib
 
 go 1.15
 
@@ -11,4 +11,5 @@ require (
 	github.com/shirou/gopsutil v2.20.9+incompatible
 	github.com/sony/sonyflake v1.0.0
 	github.com/spf13/viper v1.7.1
+	golang.org/x/sys v0.0.0-20201026173827-119d4633e4d1 // indirect
 )
