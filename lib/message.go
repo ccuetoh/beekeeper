@@ -35,19 +35,18 @@ import (
 type Operation int
 
 const (
-	OperationNone = iota
-	OperationStatus
-	OperationMonitor
-	OperationJobTransfer
-	OperationTransferFailed
-	OperationTransferAcknowledge
-	OperationJobExecute
-	OperationJobResult
+	OperationNone = iota // Nil value for operations
+	OperationStatus // Ask a node for a status report
+	OperationJobTransfer // Transfer a job via the Data field
+	OperationTransferFailed // Transfer failed, Data contains the details
+	OperationTransferAcknowledge // Transfer was successful
+	OperationJobExecute // Run the local job
+	OperationJobResult // Job ran and the details come in the Data
 )
 
 // String returns a string representation of the Operation.
 func (o Operation) String() string {
-	return []string{"None", "Status", "Monitor", "JobTransfer", "JobTransferFailed",
+	return []string{"None", "Status", "JobTransfer", "JobTransferFailed",
 		"JobTransferAcknowledge", "JobExecute", "JobResult"}[o]
 }
 

@@ -51,7 +51,7 @@ func (w Workers) DistributeJob(pkgName string, function string) error {
 	for _, worker := range w {
 		data, err := readBinary(paths[worker.Info.OS])
 		if err != nil {
-			return errors.New(fmt.Sprintf("unable to load binary for os %s: %s", worker.Info.OS, err.Error()))
+			return fmt.Errorf("unable to load binary for os %s: %s", worker.Info.OS, err.Error())
 		}
 
 		msg := Message{
@@ -61,12 +61,12 @@ func (w Workers) DistributeJob(pkgName string, function string) error {
 
 		err = worker.send(msg)
 		if err != nil {
-			return errors.New(fmt.Sprintf("unable to send job to worker %s: %s", worker.Name, err.Error()))
+			return fmt.Errorf("unable to send job to worker %s: %s", worker.Name, err.Error())
 		}
 
 		res := awaitTransferAndCheck(worker, 2)
 		if res != "" {
-			return errors.New(fmt.Sprintf("unable to send job to worker %s, %s", worker.Name, res))
+			return fmt.Errorf("unable to send job to worker %s, %s", worker.Name, res)
 		}
 	}
 

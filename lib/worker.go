@@ -20,11 +20,11 @@
  * THE SOFTWARE.
  */
 
+// Package beekeeper is a batteries-included cluster computing library
 package beekeeper
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/olekukonko/tablewriter"
 	"io"
@@ -142,7 +142,7 @@ func (w Workers) Execute(t Task, timeout ...time.Duration) ([]Result, error) {
 		go func(worker Worker, rc chan Result, ec chan error) {
 			res, err := worker.Execute(t, timeout...)
 			if err != nil {
-				ec <- errors.New(fmt.Sprintf("worker %s error: %s", worker.Name, err.Error()))
+				ec <- fmt.Errorf("worker %s error: %s", worker.Name, err.Error())
 			} else {
 				rc <- res
 			}

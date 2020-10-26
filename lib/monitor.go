@@ -151,7 +151,7 @@ func (m *Monitor) Render(ws Workers) {
 	m.App.SetRoot(m.Pages, true)
 }
 
-// PreviousPage changes the page to the n+1 page.
+// NextPage  changes the page to the n+1 page.
 func (m *Monitor) NextPage() {
 	next := m.CurrentPage + 1
 	if m.Pages.GetPageCount() < next {

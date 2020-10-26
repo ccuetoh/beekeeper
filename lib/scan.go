@@ -38,7 +38,7 @@ func ScanLocal(waitTime time.Duration) (Workers, error) {
 	return onlineWorkers, nil
 }
 
-// ScanLocal broadcasts a status request using a token to all IPs and waits the provided amount for a response.
+// ScanLocalWithToken broadcasts a status request using a token to all IPs and waits the provided amount for a response.
 func ScanLocalWithToken(waitTime time.Duration, token string) (Workers, error) {
 	err := broadcastOperationWithToken(OperationStatus, token, false)
 	if err != nil {
