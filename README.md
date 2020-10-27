@@ -72,10 +72,9 @@ As an example we'll cluster a job that finds a bunch of primes numbers and retur
 ```go 
 func RandomPrime(t *beekeeper.Task) {
 	var primes []int64
-	r := rand.New(rand.NewSource(time.Now().Unix()))
 
 	for len(primes) < 10000 {
-		n := r.Int63n(10000000000000000)
+		n := rand.Int63n(10000000000000000)
 
 		if isPrime(n) {
 			primes = append(primes, n)
@@ -83,10 +82,6 @@ func RandomPrime(t *beekeeper.Task) {
 	}
 
 	t.Returns["primes"] = primes
-}
-  
-func isPrime(n int64) bool {  
-   return big.NewInt(n).ProbablyPrime(0)  
 }
 ```
 
@@ -137,6 +132,7 @@ You can check out the official [documentation](https://beekeeper.dev/documentati
 <!-- CONTRIBUTING -->
 ## Contributing
 [![Contributor Covenant][covenant-shield]][covenant-url]
+
 Contributions are always welcome! If you want to help Beekeeper please create a fork of this repository, make your changes to your fork and do a Pull Request. Keep in mind that suggestions must have a strong case for their addition, and must keep to the structure and quality of the code.
 
 <!-- LICENSE -->
