@@ -115,7 +115,7 @@ func getHostname() (name string, err error) {
 		return "", err
 	}
 
-	return strings.ReplaceAll(name, ".local", ""), nil
+	return strings.Replace(name, ".local", "", -1), nil
 }
 
 // setOutPortIfMissing adds the configured port (or default if none) to the given IP has no ports set.
