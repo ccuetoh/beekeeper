@@ -1,6 +1,7 @@
 
 [![Go Report Card][go-report-shield]][go-report-url]
 [![MIT License][license-shield]][license-url]
+[![Build Status][travis-shield]][travis-url]
 [![Documentation][docs-shield]][docs-url]
 
 <!-- PROJECT LOGO -->
@@ -145,6 +146,9 @@ Beekeeper is distributed under the MIT License as free and open-source. See the 
 
 [license-shield]: https://img.shields.io/github/license/CamiloHernandez/beekeeper
 [license-url]: https://github.com/CamiloHernandez/beekeeper/blob/master/LICENSE
+
+[travis-shield]: https://travis-ci.org/CamiloHernandez/beekeeper.svg?branch=master
+[travis-url]: https://travis-ci.org/CamiloHernandez/beekeeper
 
 [docs-shield]: https://pkg.go.dev/badge/github.com/CamiloHernandez/beekeeper/lib
 [docs-url]: https://pkg.go.dev/github.com/CamiloHernandez/beekeeper/lib
