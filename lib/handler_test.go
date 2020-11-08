@@ -23,63 +23,90 @@
 package beekeeper
 
 import (
-	"bufio"
-	"io"
-	"log"
+	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"net"
-	"strconv"
+	"testing"
+	"time"
 )
 
-// defaultHandler will process a TCPConnection and return a Message object with its data if possible. Connections
-// coming form the host machine are discarded.
-func defaultHandler(c chan Message, conn net.Conn) {
-	isPipe := conn.RemoteAddr().String() == "pipe"
+func TestDefaultHandler(t *testing.T) {
+	msg := getTestMessage()
+	msgChan := make(chan Message, 1)
 
-	if conn.RemoteAddr() == conn.LocalAddr() && !isPipe {
-		return
-	}
+	server, client := net.Pipe()
 
-	reader := bufio.NewReader(conn)
-	header, _, err := reader.ReadLine()
+	data, err := msg.encode()
 	if err != nil {
-		log.Println("Error reading connection header:", err.Error())
-		_ = conn.Close()
+		t.Error(err)
 		return
 	}
 
-	dataLen, err := strconv.Atoi(string(header))
+	header := []byte(fmt.Sprintf("%d\n", len(data)))
+	data = append(header, data...)
+
+	go func() {
+		_, err = server.Write(data)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		err = server.Close()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
+
+	defaultHandler(msgChan, client)
+
+	select {
+	case msgReceived := <-msgChan:
+		msgReceived.Addr = msg.Addr // The address is set inside the handler
+
+		if !cmp.Equal(msgReceived, msg) {
+			t.Error()
+			return
+		}
+	case <-time.After(time.Second):
+		t.Fail()
+		return
+	}
+}
+
+func TestDefaultHandler_NoHeader(t *testing.T) {
+	msg := getTestMessage()
+	msgChan := make(chan Message, 1)
+
+	server, client := net.Pipe()
+
+	data, err := msg.encode()
 	if err != nil {
-		log.Println("Error parsing connection header:", err.Error())
-		_ = conn.Close()
+		t.Error(err)
 		return
 	}
 
-	dataBuf := make([]byte, dataLen)
+	go func() {
+		_, err = server.Write(data)
+		if err != nil {
+			t.Error(err)
+			return
+		}
 
-	readLen, err := io.ReadFull(reader, dataBuf)
-	if err != nil {
-		log.Println("Error reading connection:", err.Error())
-		_ = conn.Close()
+		err = server.Close()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
+
+	defaultHandler(msgChan, client)
+
+	select {
+	case <-msgChan:
+		t.Fail() // No Message is expected
+	case <-time.After(time.Millisecond * 100):
 		return
 	}
-
-	if readLen != dataLen {
-		log.Printf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
-		_ = conn.Close()
-		return
-	}
-
-	msg, err := decodeMessage(dataBuf)
-	if err != nil {
-		log.Println("Error reading data:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if !isPipe {
-		tcpAddr := conn.RemoteAddr().(*net.TCPAddr)
-		msg.Addr = tcpAddr
-	}
-
-	c <- msg
 }

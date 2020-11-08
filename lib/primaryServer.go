@@ -22,17 +22,20 @@
 
 package beekeeper
 
-import "sync"
+import (
+	"sync"
+)
 
 // onlineWorkers keeps a list of all the Workers that have responded to this node.
 var onlineWorkers Workers
 var onlineWorkersLock sync.RWMutex
 
+// serveCallbackFunction allows for testing of the callback.
+var serveCallbackFunction = defaultServeCallback
+
 // StartPrimary runs a server for the main node of the cluster and blocks. An optional Config can be provided. If none
 // is passed, a default configuration is used.
 func StartPrimary(configs ...Config) error {
-	c := make(chan Message)
-
 	var config Config
 	if len(configs) > 0 {
 		config = configs[0]
@@ -40,9 +43,9 @@ func StartPrimary(configs ...Config) error {
 		config = NewDefaultConfig()
 	}
 
-	mySettings = nodeSettingsFromConfig(config)
+	mySettings = nodeSettingsFromConfig(config) // Global settings var
 
-	err := serveCallback(c, config.InboundPort, defaultHandler)
+	msgChan, err := serveCallbackFunction(config.InboundPort, defaultHandler)
 	if err != nil {
 		return err
 	}
@@ -52,7 +55,7 @@ func StartPrimary(configs ...Config) error {
 	}
 
 	for {
-		msg := <-c
+		msg := <-msgChan
 
 		authed := msg.isTokenMatching()
 		if !authed {

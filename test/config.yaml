@@ -1,0 +1,7 @@
+name: test_hostname
+debug: True
+token: test_token
+inbound_port: 111
+outbound_port: 222
+disable_cleanup: True
+disable_connection_watchdog: True

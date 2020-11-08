@@ -3,7 +3,6 @@ cobra.yaml
 
 # Dev folders
 build
-test
 .beekeeper
 
 # IDEA files

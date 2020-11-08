@@ -23,63 +23,29 @@
 package beekeeper
 
 import (
-	"bufio"
-	"io"
-	"log"
-	"net"
-	"strconv"
+	"github.com/google/go-cmp/cmp"
+	"testing"
 )
 
-// defaultHandler will process a TCPConnection and return a Message object with its data if possible. Connections
-// coming form the host machine are discarded.
-func defaultHandler(c chan Message, conn net.Conn) {
-	isPipe := conn.RemoteAddr().String() == "pipe"
-
-	if conn.RemoteAddr() == conn.LocalAddr() && !isPipe {
-		return
+func TestNewConfigFromFile(t *testing.T) {
+	expect := Config{
+		Name:                      "test_hostname",
+		Debug:                     true,
+		Token:                     "test_token",
+		InboundPort:               111,
+		OutboundPort:              222,
+		DisableCleanup:            true,
+		DisableConnectionWatchdog: true,
 	}
 
-	reader := bufio.NewReader(conn)
-	header, _, err := reader.ReadLine()
+	fileConfig, err := NewConfigFromFile("../test/config.yaml")
 	if err != nil {
-		log.Println("Error reading connection header:", err.Error())
-		_ = conn.Close()
+		t.Error(err)
 		return
 	}
 
-	dataLen, err := strconv.Atoi(string(header))
-	if err != nil {
-		log.Println("Error parsing connection header:", err.Error())
-		_ = conn.Close()
+	if !cmp.Equal(fileConfig, expect) {
+		t.Fail()
 		return
 	}
-
-	dataBuf := make([]byte, dataLen)
-
-	readLen, err := io.ReadFull(reader, dataBuf)
-	if err != nil {
-		log.Println("Error reading connection:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if readLen != dataLen {
-		log.Printf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
-		_ = conn.Close()
-		return
-	}
-
-	msg, err := decodeMessage(dataBuf)
-	if err != nil {
-		log.Println("Error reading data:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if !isPipe {
-		tcpAddr := conn.RemoteAddr().(*net.TCPAddr)
-		msg.Addr = tcpAddr
-	}
-
-	c <- msg
 }

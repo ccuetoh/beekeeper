@@ -23,63 +23,37 @@
 package beekeeper
 
 import (
-	"bufio"
-	"io"
-	"log"
-	"net"
-	"strconv"
+	"bytes"
+	"errors"
+	"github.com/google/go-cmp/cmp"
+	"strings"
+	"testing"
 )
 
-// defaultHandler will process a TCPConnection and return a Message object with its data if possible. Connections
-// coming form the host machine are discarded.
-func defaultHandler(c chan Message, conn net.Conn) {
-	isPipe := conn.RemoteAddr().String() == "pipe"
+func TestResult(t *testing.T) {
+	out := &bytes.Buffer{}
 
-	if conn.RemoteAddr() == conn.LocalAddr() && !isPipe {
+	result := newErrorResult(errors.New("test"))
+	result.printEncode(out)
+
+	if strings.HasPrefix(out.String(), "FATAL") {
+		t.Fail()
+	}
+
+	splits := bytes.Split(out.Bytes(), []byte("\n"))
+	if len(splits) != 2 {
+		t.Error("unable to split header and body with split length", len(splits))
 		return
 	}
 
-	reader := bufio.NewReader(conn)
-	header, _, err := reader.ReadLine()
+	result2, err := decodeResult(splits[1])
 	if err != nil {
-		log.Println("Error reading connection header:", err.Error())
-		_ = conn.Close()
+		t.Error(err)
 		return
 	}
 
-	dataLen, err := strconv.Atoi(string(header))
-	if err != nil {
-		log.Println("Error parsing connection header:", err.Error())
-		_ = conn.Close()
+	if !cmp.Equal(result, result2) {
+		t.Error("non matching results", cmp.Diff(result, result2))
 		return
 	}
-
-	dataBuf := make([]byte, dataLen)
-
-	readLen, err := io.ReadFull(reader, dataBuf)
-	if err != nil {
-		log.Println("Error reading connection:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if readLen != dataLen {
-		log.Printf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
-		_ = conn.Close()
-		return
-	}
-
-	msg, err := decodeMessage(dataBuf)
-	if err != nil {
-		log.Println("Error reading data:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if !isPipe {
-		tcpAddr := conn.RemoteAddr().(*net.TCPAddr)
-		msg.Addr = tcpAddr
-	}
-
-	c <- msg
 }
