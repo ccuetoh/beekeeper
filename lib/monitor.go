@@ -72,8 +72,10 @@ func (m *Monitor) Run(configs ...Config) {
 		switch e.Key() {
 		case tcell.KeyCtrlC:
 			m.Stop()
+			os.Exit(0)
 		case tcell.KeyEsc:
 			m.Stop()
+			os.Exit(0)
 		case tcell.KeyRight:
 			m.NextPage()
 		case tcell.KeyLeft:
@@ -173,10 +175,9 @@ func (m *Monitor) PreviousPage() {
 	m.Pages.SwitchToPage(fmt.Sprintf("%d", previous))
 }
 
-// Stop stops the App and exits with code 0.
+// Stop stops the monitor's App.
 func (m *Monitor) Stop() {
 	m.App.Stop()
-	os.Exit(0)
 }
 
 // pageContentFromChunk creates a new detailed view box of a Worker to be rendered on the Monitor.

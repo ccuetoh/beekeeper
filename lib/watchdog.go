@@ -31,17 +31,17 @@ import (
 // refill it.
 func startConnectionWatchdog() {
 	for {
-		time.Sleep(DefaultWatchdogSleep)
+		time.Sleep(WatchdogSleep)
 
 		onlineWorkers = Workers{}
 		err := broadcastOperation(OperationStatus, false)
 		if err != nil {
-			log.Println("Unable to broadcastOperation as watchdog:", err.Error())
+			log.Println("Unable to broadcast as watchdog:", err.Error())
 		}
 	}
 }
 
-// newDisconnectionWatchdog checks every DefaultWatchdogSleep seconds if a worker has disconnected. If the node
+// newDisconnectionWatchdog checks every WatchdogSleep seconds if a worker has disconnected. If the node
 // doesn't respond maxDisconnections time, the returned chan receives false.
 func newDisconnectionWatchdog(w Worker, maxDisconnections int) chan bool {
 	c := make(chan bool)
@@ -49,7 +49,7 @@ func newDisconnectionWatchdog(w Worker, maxDisconnections int) chan bool {
 
 	go func() {
 		for {
-			time.Sleep(DefaultWatchdogSleep)
+			time.Sleep(WatchdogSleep)
 
 			if w.isOnline() {
 				disconnections = 0
@@ -58,6 +58,7 @@ func newDisconnectionWatchdog(w Worker, maxDisconnections int) chan bool {
 
 				if disconnections >= maxDisconnections {
 					c <- true
+					return
 				}
 			}
 		}

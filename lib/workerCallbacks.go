@@ -65,6 +65,13 @@ func workerJobTransferCallback(msg Message) {
 		return
 	}
 
+	if len(msg.Data) == 0 {
+		log.Println("Unable to save job data: empty data field")
+		respondTransferError(msg, "empty data field")
+
+		return
+	}
+
 	binPath := folderPath + "/job.bin"
 	err = saveBinary(binPath, msg.Data)
 	if err != nil {

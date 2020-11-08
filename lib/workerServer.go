@@ -27,8 +27,6 @@ import "log"
 // StartWorker runs a server for a worker node and blocks. An optional Config can be provided. If none is passed,
 // a default configuration is used.
 func StartWorker(configs ...Config) error {
-	c := make(chan Message)
-
 	var config Config
 	if len(configs) > 0 {
 		config = configs[0]
@@ -38,13 +36,13 @@ func StartWorker(configs ...Config) error {
 
 	mySettings = nodeSettingsFromConfig(config)
 
-	err := serveCallback(c, config.InboundPort, defaultHandler)
+	msgChan, err := defaultServeCallback(config.InboundPort, defaultHandler)
 	if err != nil {
 		return err
 	}
 
 	for {
-		msg := <-c
+		msg := <-msgChan
 
 		authed := msg.isTokenMatching()
 		if !authed {

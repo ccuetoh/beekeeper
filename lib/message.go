@@ -83,6 +83,10 @@ type NodeInfo struct {
 	OS      string
 }
 
+func newMessage() Message {
+	return Message{Addr: &net.TCPAddr{}}
+}
+
 // encode returns a gob encoded and gzip compressed message.
 func (m Message) encode() ([]byte, error) {
 	var buf bytes.Buffer
@@ -179,4 +183,18 @@ func decodeMessage(data []byte) (Message, error) {
 	}
 
 	return msg, nil
+}
+
+func (m Message) setData(data interface{}) (Message, error) {
+	var buf bytes.Buffer
+
+	gobEncoder := gob.NewEncoder(&buf)
+	err := gobEncoder.Encode(data)
+	if err != nil {
+		return Message{}, err
+	}
+
+	m.Data = buf.Bytes()
+
+	return m, nil
 }

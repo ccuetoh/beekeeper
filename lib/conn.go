@@ -36,8 +36,15 @@ import (
 // nodeConn is an alias for net.TCPConn.
 type nodeConn net.TCPConn
 
-// newNodeConn establishes a new connection to the node using TCP.
-func newNodeConn(ip string, timeout ...time.Duration) (*nodeConn, error) {
+// sendFunction is used to manage message sending. It gets replaced in testing.
+var sendFunction = defaultSendFunction
+
+// connectFunction is used to manage new connections. It gets replaced in testing.
+var connectFunction = defaultNodeConnFunction
+
+// defaultNodeConnFunction creates a connection with the ip. It exists to allow for testing without actually
+// creating connections.
+func defaultNodeConnFunction(ip string, timeout ...time.Duration) (*nodeConn, error) {
 	var d net.Dialer
 	if len(timeout) > 0 {
 		d = net.Dialer{Timeout: timeout[0]}
@@ -53,8 +60,13 @@ func newNodeConn(ip string, timeout ...time.Duration) (*nodeConn, error) {
 	return (*nodeConn)(conn.(*net.TCPConn)), nil
 }
 
-// send fills the Message with the required metadata and sends it.
-func (c *nodeConn) send(m Message) error {
+// newNodeConn establishes a new connection to the node using TCP.
+func newNodeConn(ip string, timeout ...time.Duration) (*nodeConn, error) {
+	return connectFunction(ip, timeout...)
+}
+
+// defaultSendFunction is used to send messages. It exists to allow for testing without actually sending messages.
+func defaultSendFunction(c *nodeConn, m Message) error {
 	m.SentAt = time.Now()
 	m.From = mySettings.Name
 	m.Status = mySettings.Status
@@ -89,6 +101,11 @@ func (c *nodeConn) send(m Message) error {
 	}
 
 	return nil
+}
+
+// send fills the Message with the required metadata and sends it.
+func (c *nodeConn) send(m Message) error {
+	return sendFunction(c, m)
 }
 
 // getHostname uses the local network name to fetch the host system's name.

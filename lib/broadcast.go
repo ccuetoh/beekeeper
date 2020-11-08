@@ -63,10 +63,15 @@ func broadcastCallback(msg Message, await bool) error {
 			continue
 		}
 
-		wg.Add(1)
+		x := x
+		if await {
+			wg.Add(1)
+		}
 
-		go func(x int, wg *sync.WaitGroup) {
-			defer wg.Done()
+		go func() {
+			if await {
+				defer wg.Done()
+			}
 
 			ip := localNetwork + strconv.Itoa(x)
 
@@ -81,7 +86,7 @@ func broadcastCallback(msg Message, await bool) error {
 				// log.Println("Error: Unable to send operation to node while broadcasting to", ip)
 				return
 			}
-		}(x, &wg)
+		}()
 	}
 
 	if await {

@@ -28,11 +28,13 @@ import (
 	"strconv"
 )
 
-// serveCallback listens for TCP connections and sends the processed output of handler to the c chan.
-func serveCallback(c chan Message, port int, handler func(chan Message, *net.TCPConn)) error {
+// defaultServeCallback listens for TCP connections and sends the processed output of handler to the c chan.
+func defaultServeCallback(port int, handler func(chan Message, net.Conn)) (chan Message, error) {
+	c := make(chan Message)
+
 	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	go func() {
@@ -45,12 +47,12 @@ func serveCallback(c chan Message, port int, handler func(chan Message, *net.TCP
 			}
 
 			go func() {
-				handler(c, conn.(*net.TCPConn))
+				handler(c, conn)
 			}()
 		}
 	}()
 
-	return nil
+	return c, nil
 }
 
 // logReceivedIfDebug prints a Message summary if debug mode is configured.

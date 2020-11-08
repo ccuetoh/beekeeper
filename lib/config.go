@@ -34,10 +34,10 @@ const (
 
 	// DefaultScanTime is the scan time to be used by scan functions
 	DefaultScanTime = time.Second * 2
-
-	// DefaultWatchdogSleep is the time between node pings for the watchdog
-	DefaultWatchdogSleep = time.Second * 15
 )
+
+// WatchdogSleep is the time between node pings for the watchdog
+var WatchdogSleep = time.Second * 15
 
 // Config holds the configurations for a worker or a primary node.
 type Config struct {

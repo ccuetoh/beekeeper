@@ -26,6 +26,8 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"io"
+	"os"
 )
 
 // Result holds the details from a job execution.
@@ -72,14 +74,21 @@ func decodeResult(data []byte) (Result, error) {
 }
 
 // printEncode encodes the Result and header and prints it to stdio.
-func (r Result) printEncode() {
+func (r Result) printEncode(output ...io.Writer) {
+	var out io.Writer
+	if len(output) > 0 {
+		out = output[0]
+	} else {
+		out = io.Writer(os.Stdout)
+	}
+
 	data, err := r.encode()
 	if err != nil {
-		fmt.Println("FATAL", err.Error())
+		_, _ = fmt.Fprintln(out, "FATAL: "+err.Error())
 	}
 
 	header := []byte(fmt.Sprintf("%d\n", len(data)))
 	data = append(header, data...)
 
-	fmt.Print(string(data))
+	_, _ = fmt.Fprint(out, string(data))
 }

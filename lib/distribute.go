@@ -64,9 +64,13 @@ func (w Workers) DistributeJob(pkgName string, function string) error {
 			return fmt.Errorf("unable to send job to worker %s: %s", worker.Name, err.Error())
 		}
 
-		res := awaitTransferAndCheck(worker, 2)
-		if res != "" {
-			return fmt.Errorf("unable to send job to worker %s, %s", worker.Name, res)
+		err = awaitTransferAndCheck(worker, 2)
+		if err != nil {
+			if err == ErrNodeDisconnected {
+				return fmt.Errorf("unable to send job to worker %s: node disconnected", worker.Name)
+			}
+
+			return fmt.Errorf("unable to send job to worker %s: %s", worker.Name, err)
 		}
 	}
 

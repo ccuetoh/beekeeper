@@ -42,6 +42,9 @@ var awaitedTransfers = make(map[*net.TCPAddr]chan string)
 // awaitedTransfersLock blocks the awaitedTransfers for asynchronous use
 var awaitedTransfersLock sync.Mutex
 
+var ErrTimeout = errors.New("time exceeded")
+var ErrNodeDisconnected = errors.New("node disconnected")
+
 // awaitTaskWithTimeout blocks the execution until a node sends a Result with a matching taskID or the assigned time
 // window is expired.
 func awaitTaskWithTimeout(taskID string, timeout time.Duration) (Result, error) {
@@ -55,7 +58,7 @@ func awaitTaskWithTimeout(taskID string, timeout time.Duration) (Result, error) 
 	case res := <-resChan:
 		return res, nil
 	case <-time.After(timeout):
-		return Result{}, errors.New("time exceeded")
+		return Result{}, ErrTimeout
 	}
 }
 
@@ -90,22 +93,27 @@ func processAwaitedTask(res Result) bool {
 
 // awaitTransfer blocks the execution until the worker sends a transfer acknowledgement or reports a transfer error.
 // If an error message is received i'll be returned. An empty string means no error was raised.
-func awaitTransfer(w Worker) string {
+func awaitTransfer(w Worker) error {
 	errChan := make(chan string)
 
 	awaitedTransfersLock.Lock()
 	awaitedTransfers[w.Addr] = errChan
 	awaitedTransfersLock.Unlock()
 
-	return <-errChan
+	res := <-errChan
+	if res == "" {
+		return nil
+	}
+
+	return errors.New(res)
 }
 
 // awaitTransferAndCheck blocks the execution until the worker sends a transfer acknowledgement or reports a transfer
 // error. If an error message is received i'll be returned. It will create a thread to check if the worker is still
 // responding to Status operations, and if no response is received more than maxDisconnect times, the transfer will be
 // considered failed.
-func awaitTransferAndCheck(w Worker, maxDisconnect int) string {
-	successChan := make(chan string)
+func awaitTransferAndCheck(w Worker, maxDisconnect int) error {
+	successChan := make(chan error)
 
 	// Result routine
 	go func() {
@@ -116,7 +124,7 @@ func awaitTransferAndCheck(w Worker, maxDisconnect int) string {
 
 	select {
 	case <-disconnectChan:
-		return "node disconnected"
+		return ErrNodeDisconnected
 	case errMsg := <-successChan:
 		return errMsg
 	}
@@ -143,12 +151,4 @@ func processAwaitedTransfer(msg Message) bool {
 	}
 
 	return false
-}
-
-// deleteAwaitedTransfer removes an awaited transfer from the awaited list.
-func deleteAwaitedTransfer(w Worker) {
-	awaitedTransfersLock.Lock()
-	defer awaitedTransfersLock.Unlock()
-
-	delete(awaitedTransfers, w.Addr)
 }
