@@ -42,7 +42,10 @@ var awaitedTransfers = make(map[*net.TCPAddr]chan string)
 // awaitedTransfersLock blocks the awaitedTransfers for asynchronous use
 var awaitedTransfersLock sync.Mutex
 
+// ErrTimeout is produced by functions called with a timeout when the allocated time is exceeded
 var ErrTimeout = errors.New("time exceeded")
+
+// ErrNodeDisconnected is produced when a node is gets disconnected while executing an operation
 var ErrNodeDisconnected = errors.New("node disconnected")
 
 // awaitTaskWithTimeout blocks the execution until a node sends a Result with a matching taskID or the assigned time
