@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/CamiloHernandez/beekeeper/lib"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 // scanCmd represents the scan command
@@ -43,7 +42,7 @@ var scanCmd = &cobra.Command{
 			return
 		}
 
-		workers.PrettyPrint(os.Stdout)
+		workers.PrettyPrint()
 	},
 }
 

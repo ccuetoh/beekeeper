@@ -27,8 +27,10 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/olekukonko/tablewriter"
+	"github.com/prometheus/common/log"
 	"io"
 	"net"
+	"os"
 	"sort"
 	"time"
 )
@@ -37,7 +39,6 @@ import (
 type Worker struct {
 	Addr   *net.TCPAddr
 	Name   string
-	OS     string
 	Status Status
 	Info   NodeInfo
 }
@@ -75,7 +76,7 @@ func (w Worker) send(m Message) error {
 
 	err = conn.Close()
 	if err != nil {
-		return err
+		log.Warn("Unable to close connection with node:", err)
 	}
 
 	return nil
@@ -104,8 +105,15 @@ func (w Workers) getOperatingSystems() (opSys []string) {
 }
 
 // PrettyPrint prints a formatted table of workers.
-func (w Workers) PrettyPrint(writer io.Writer) {
-	table := tablewriter.NewWriter(writer)
+func (w Workers) PrettyPrint(writer ...io.Writer) {
+	var out io.Writer
+	if len(writer) > 0 {
+		out = writer[0]
+	} else {
+		out = os.Stdout
+	}
+
+	table := tablewriter.NewWriter(out)
 
 	table.SetHeader([]string{"Name", "Address", "Status"})
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
@@ -123,7 +131,7 @@ func (w Workers) update(newWorker Worker) Workers {
 	defer onlineWorkersLock.Unlock()
 
 	for i, worker := range w {
-		if worker.Addr.IP.String() == newWorker.Addr.IP.String() {
+		if worker.Addr.IP.Equal(newWorker.Addr.IP) {
 			w[i] = newWorker
 			return w
 		}
