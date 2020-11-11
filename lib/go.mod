@@ -8,7 +8,7 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/olekukonko/tablewriter v0.0.4
-	github.com/prometheus/common v0.14.0
+	github.com/prometheus/common v0.15.0
 	github.com/rivo/tview v0.0.0-20201018122409-d551c850a743
 	github.com/shirou/gopsutil v2.20.9+incompatible
 	github.com/sony/sonyflake v1.0.0
