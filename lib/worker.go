@@ -27,8 +27,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/olekukonko/tablewriter"
-	"github.com/prometheus/common/log"
 	"io"
+	"log"
 	"net"
 	"os"
 	"sort"
@@ -76,7 +76,7 @@ func (w Worker) send(m Message) error {
 
 	err = conn.Close()
 	if err != nil {
-		log.Warn("Unable to close connection with node:", err)
+		log.Println("Unable to close connection with node:", err)
 	}
 
 	return nil

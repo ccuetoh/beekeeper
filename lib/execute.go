@@ -40,6 +40,14 @@ var flake = sonyflake.NewSonyflake(sonyflake.Settings{StartTime: time.Now()})
 // Execute runs a task on the given worker nodes and block until all task results are retrieved.
 // It will fail if no job is present on the node systems. An optional timeout parameter can be provided.
 func (w Worker) Execute(t Task, timeout ...time.Duration) (res Result, err error) {
+	if !mySettings.Config.DisableConnectionWatchdog {
+		terminateChan := make(chan bool)
+		go startConnectionWatchdog(terminateChan)
+		defer func() {
+			terminateChan <- true
+		}()
+	}
+
 	t.UUID, err = newJobUUID()
 	if err != nil {
 		return Result{}, err

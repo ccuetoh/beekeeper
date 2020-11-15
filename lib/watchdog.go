@@ -29,14 +29,19 @@ import (
 
 // startConnectionWatchdog will periodically clear the online workers list and broadcastOperation a new status request to
 // refill it.
-func startConnectionWatchdog() {
+func startConnectionWatchdog(terminate chan bool) {
 	for {
-		time.Sleep(WatchdogSleep)
+		select {
+		case <-terminate:
+			return
+		default:
+			time.Sleep(WatchdogSleep)
 
-		onlineWorkers = Workers{}
-		err := broadcastOperation(OperationStatus, false)
-		if err != nil {
-			log.Println("Unable to broadcast as watchdog:", err.Error())
+			onlineWorkers = Workers{}
+			err := broadcastOperation(OperationStatus, false)
+			if err != nil {
+				log.Println("Unable to broadcast as watchdog:", err.Error())
+			}
 		}
 	}
 }

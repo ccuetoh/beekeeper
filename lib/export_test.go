@@ -58,7 +58,8 @@ func startPrimaryTestChannels() (chan Message, chan Message) {
 	config.DisableConnectionWatchdog = true
 
 	go func() {
-		err := StartPrimary(config)
+		sv := NewServer(config)
+		err := sv.Start()
 		if err != nil {
 			panic(err)
 		}

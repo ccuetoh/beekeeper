@@ -41,6 +41,14 @@ func (w Workers) DistributeJob(pkgName string, function string) error {
 		return errors.New("no workers provided")
 	}
 
+	if !mySettings.Config.DisableConnectionWatchdog {
+		terminateChan := make(chan bool)
+		go startConnectionWatchdog(terminateChan)
+		defer func() {
+			terminateChan <- true
+		}()
+	}
+
 	opSys := w.getOperatingSystems()
 
 	paths, err := buildJob(pkgName, function, opSys)

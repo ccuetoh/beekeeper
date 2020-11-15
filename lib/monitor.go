@@ -39,6 +39,7 @@ type Monitor struct {
 	App         *tview.Application
 	Pages       *tview.Pages
 	CurrentPage int
+	server      *Server
 }
 
 // NewMonitor creates and returns a *Monitor struct.
@@ -61,8 +62,9 @@ func (m *Monitor) Run(configs ...Config) {
 
 	config.DisableConnectionWatchdog = true
 
+	m.server = NewServer(config)
 	go func() {
-		err := StartPrimary(config)
+		err := m.server.Start()
 		if err != nil {
 			log.Panic("Unable to start server:", err.Error())
 		}
@@ -175,8 +177,9 @@ func (m *Monitor) PreviousPage() {
 	m.Pages.SwitchToPage(fmt.Sprintf("%d", previous))
 }
 
-// Stop stops the monitor's App.
+// Stop stops the monitor's App and Server.
 func (m *Monitor) Stop() {
+	m.server.Stop()
 	m.App.Stop()
 }
 

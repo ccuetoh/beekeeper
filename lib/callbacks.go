@@ -32,8 +32,34 @@ import (
 	"time"
 )
 
-// workerStatusCallback is the callback for the Status operation.
-func workerStatusCallback(msg Message) {
+
+// jobResultCallback is the callback for the JobResult operation.
+func jobResultCallback(msg Message) {
+	res, err := decodeResult(msg.Data)
+	if err != nil {
+		log.Println("Error: Unable to decode task response")
+		return
+	}
+
+	found := processAwaitedTask(res)
+
+	if !found {
+		log.Printf("Warning: Received a response for task %s, but wasn't expecting it\n", res.UUID)
+	}
+}
+
+// transferStatusCallback is the callback for the JobTransferAcknowledge and JobTransferFailed operations.
+func transferStatusCallback(msg Message) {
+	found := processAwaitedTransfer(msg)
+
+	if !found {
+		log.Printf("Warning: Received a transfer status from %s, but wasn't expecting it\n",
+			msg.Addr.IP.String())
+	}
+}
+
+// statusCallback is the callback for the Status operation.
+func statusCallback(msg Message) {
 	ni := NodeInfo{}
 
 	// CPU Usage
@@ -52,8 +78,8 @@ func workerStatusCallback(msg Message) {
 	}
 }
 
-// workerJobTransferCallback is the callback for the JobTransfer operation.
-func workerJobTransferCallback(msg Message) {
+// jobTransferCallback is the callback for the JobTransfer operation.
+func jobTransferCallback(msg Message) {
 	log.Println("Transferring new job from node", msg.From)
 
 	folderPath := ".beekeeper"
@@ -91,8 +117,8 @@ func workerJobTransferCallback(msg Message) {
 	log.Println("New job transferred successfully")
 }
 
-// workerJobExecuteCallback is the callback for the JobExecute operation.
-func workerJobExecuteCallback(msg Message) {
+// jobExecuteCallback is the callback for the JobExecute operation.
+func jobExecuteCallback(msg Message) {
 	task, err := decodeTask(msg.Data)
 	if err != nil {
 		log.Println("Unable to read task data:", err.Error())

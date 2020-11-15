@@ -22,53 +22,75 @@
 
 package beekeeper
 
-import "log"
+import (
+	"testing"
+	"time"
+)
 
-// StartWorker runs a server for a worker node and blocks. An optional Config can be provided. If none is passed,
-// a default configuration is used.
-func StartWorker(configs ...Config) error {
-	var config Config
-	if len(configs) > 0 {
-		config = configs[0]
-	} else {
-		config = NewDefaultConfig()
-	}
+func TestStatusCallback(t *testing.T) {
+	_, sendChan := startPrimaryTestChannels()
 
-	mySettings = nodeSettingsFromConfig(config)
+	msg := getTestMessage()
+	msg.Operation = OperationStatus
 
-	msgChan, err := defaultServeCallback(config.InboundPort, defaultHandler)
-	if err != nil {
-		return err
-	}
+	go handleMessage(msg)
 
-	for {
-		msg := <-msgChan
-
-		authed := msg.isTokenMatching()
-		if !authed {
-			if config.Debug {
-				log.Println("Received no-auth:", msg.summary())
-			}
-
-			continue
+	select {
+	case response := <-sendChan:
+		if response.Operation != OperationNone {
+			t.Fail()
 		}
 
-		logReceivedIfDebug(msg)
-
-		go workerHandleMessage(msg)
+		return
+	case <-time.After(time.Second * 2): // The CPU info requires at least 1 second of processing
+		t.Fail()
+		return
 	}
+
 }
 
-// workerHandleMessage takes a Message from the worker node's server and runs the corresponding operation callback.
-func workerHandleMessage(msg Message) {
-	switch msg.Operation {
-	case OperationStatus:
-		workerStatusCallback(msg)
+func TestJobTransferCallback_Acknowledge(t *testing.T) {
+	_, sendChan := startPrimaryTestChannels()
 
-	case OperationJobTransfer:
-		workerJobTransferCallback(msg)
+	msg := getTestMessage()
+	msg.Data = []byte("test")
+	msg.Operation = OperationJobTransfer
 
-	case OperationJobExecute:
-		workerJobExecuteCallback(msg)
+	go handleMessage(msg)
+
+	select {
+	case response := <-sendChan:
+		if response.Operation != OperationTransferAcknowledge {
+			t.Fail()
+		}
+
+		return
+	case <-time.After(time.Second):
+		t.Fail()
+		return
 	}
+
+}
+
+func TestJobTransferCallback_Failed(t *testing.T) {
+	_, sendChan := startPrimaryTestChannels()
+
+	msg := getTestMessage()
+	msg.Operation = OperationJobTransfer
+	msg.Data = []byte{}
+
+	go handleMessage(msg)
+
+	select {
+	case response := <-sendChan:
+		if response.Operation != OperationTransferFailed {
+			t.Fail()
+		}
+
+		return
+	case <-time.After(time.Second):
+		t.Fail()
+		return
+	}
+
 }

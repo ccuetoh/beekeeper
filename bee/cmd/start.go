@@ -28,50 +28,43 @@ import (
 	"github.com/CamiloHernandez/beekeeper/lib"
 	"github.com/spf13/cobra"
 	"log"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // startCmd represents the start command
 var startCmd = &cobra.Command{
-	Use:   "start [worker|primary] [-p port] [-t token] [-c config]",
+	Use:   "start [-p port] [-t token] [-c config]",
 	Short: "Start a new Beekeeper server on the machine",
-	Long: `A new Beekeeper server is created for a worker or a primary node depending on the first argument. Unless
+	Long: `A new Beekeeper server is created as a node. Unless
 configured otherwise the default port 2020 and no token is used. No more than one
 server might be running on the same machine.
 
 For a detailed usage guide visit https://www.beekeeper.dev`,
-	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		mode := strings.ToLower(args[0])
-
 		instanceCfg := cfg
 		if portOverride != 0 {
 			instanceCfg.InboundPort = portOverride
 		}
 
-		if mode == "worker" {
-			log.Println("Starting worker server")
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-			err := beekeeper.StartWorker(instanceCfg)
-			if err != nil {
-				fmt.Println("Unable to start worker server:", err.Error())
-			}
+		log.Println("Starting server...")
+		sv := beekeeper.NewServer(instanceCfg)
 
-			return
+		go func() {
+			<-c
+			fmt.Println("Shutting down server...")
+			sv.Stop()
+			os.Exit(0)
+		}()
+
+		err := sv.Start()
+		if err != nil {
+			fmt.Println("Unable to start worker server:", err.Error())
 		}
-
-		if mode == "primary" {
-			log.Println("Starting primary server")
-
-			err := beekeeper.StartPrimary(instanceCfg)
-			if err != nil {
-				fmt.Println("Unable to start primary server:", err.Error())
-			}
-
-			return
-		}
-
-		fmt.Println("Invalid server mode. Try with \"worker\" or \"primary\"")
 	},
 }
 
