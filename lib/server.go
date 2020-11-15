@@ -40,11 +40,13 @@ var onlineWorkersLock sync.RWMutex
 // serveCallbackFunction allows for testing of the callback.
 var serveCallbackFunction = defaultServeCallback
 
+// Server is a node server, that holds the configuration to be used.
 type Server struct {
 	Config          Config
 	terminationChan chan bool
 }
 
+// NewServer creates a Server struct using the given config or the default if none is provided.
 func NewServer(configs ...Config) *Server {
 	var config Config
 	if len(configs) > 0 {
