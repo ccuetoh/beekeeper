@@ -32,7 +32,6 @@ import (
 	"time"
 )
 
-
 // jobResultCallback is the callback for the JobResult operation.
 func jobResultCallback(msg Message) {
 	res, err := decodeResult(msg.Data)
