@@ -87,10 +87,11 @@ func RandomPrime(t *beekeeper.Task) {
 ```
 
 ### Running a Task
-To run a task first we need primary server to handle our task. This is blocking, so we run it inside a goroutine.
+To run a task first we need a server to handle our task. This is blocking, so we run it inside a goroutine.
 ```go
-go func() {  
-   err := beekeeper.StartPrimary()  
+go func() {
+   sv := beekeeper.NewServer()  
+   err := sv.Start()  
    if err != nil{  
       panic(err)  
    }  
@@ -111,6 +112,9 @@ if err != nil{
 }
 ```
 All is left to do is create a new Task and send it to the workers. Since we are not going to send any arguments we'll use an empty Task.
+Keep in mind that calling `Execute` on a list of workers will start the same task on all of them. To run different tasks depending on of the node,
+we would call `Execute` on the singular nodes.
+`Execute`
 ```go
 task := beekeeper.NewTask()
 
