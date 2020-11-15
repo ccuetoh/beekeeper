@@ -114,7 +114,6 @@ if err != nil{
 All is left to do is create a new Task and send it to the workers. Since we are not going to send any arguments we'll use an empty Task.
 Keep in mind that calling `Execute` on a list of workers will start the same task on all of them. To run different tasks depending on of the node,
 we would call `Execute` on the singular nodes.
-`Execute`
 ```go
 task := beekeeper.NewTask()
 
