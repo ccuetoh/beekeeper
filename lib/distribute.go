@@ -104,9 +104,9 @@ func (s *Server) DistributeJob(n Nodes, pkgName string, function string) error {
 	okays := 0
 	for okays < len(n) {
 		select {
-		case <- okChan:
+		case <-okChan:
 			okays += 1
-		case err := <- errChan:
+		case err := <-errChan:
 			return err
 		}
 	}

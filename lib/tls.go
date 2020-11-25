@@ -34,11 +34,11 @@ import (
 	"math/big"
 	"path/filepath"
 	"time"
-	
+
 	"github.com/mitchellh/go-homedir"
 )
 
-func getTLSCache() (pemCert []byte , pemKey []byte, err error) {
+func getTLSCache() (pemCert []byte, pemKey []byte, err error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
 		return nil, nil, err
@@ -65,7 +65,7 @@ func getTLSCache() (pemCert []byte , pemKey []byte, err error) {
 	return pemCert, pemKey, nil
 }
 
-func cacheTLS(pemCert []byte , pemKey []byte) (err error) {
+func cacheTLS(pemCert []byte, pemKey []byte) (err error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func cacheTLS(pemCert []byte , pemKey []byte) (err error) {
 	return nil
 }
 
-func newSelfSignedCert() (pemCert []byte , pemKey []byte, err error) {
+func newSelfSignedCert() (pemCert []byte, pemKey []byte, err error) {
 	bits := 4096
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {

@@ -42,19 +42,19 @@ var WatchdogSleep = time.Second * 15
 // Config holds the configurations for a node or a primary node.
 type Config struct {
 	// Basic
-	Name                      string `mapstructure:"name,omitempty"`
-	Debug                     bool   `mapstructure:"debug,omitempty"`
-	Token                     string `mapstructure:"token,omitempty"`
-	InboundPort               int    `mapstructure:"inbound_port,omitempty"`
-	OutboundPort              int    `mapstructure:"outbound_port,omitempty"`
+	Name         string `mapstructure:"name,omitempty"`
+	Debug        bool   `mapstructure:"debug,omitempty"`
+	Token        string `mapstructure:"token,omitempty"`
+	InboundPort  int    `mapstructure:"inbound_port,omitempty"`
+	OutboundPort int    `mapstructure:"outbound_port,omitempty"`
 
 	// TLS
-	TLSCertificate            []byte `mapstructure:"tls_certificate,omitempty"`
-	TLSPrivateKey             []byte `mapstructure:"tls_private_key,omitempty"`
+	TLSCertificate []byte `mapstructure:"tls_certificate,omitempty"`
+	TLSPrivateKey  []byte `mapstructure:"tls_private_key,omitempty"`
 
 	// Disables
-	DisableCleanup            bool   `mapstructure:"disable_cleanup,omitempty"`
-	DisableConnectionWatchdog bool   `mapstructure:"disable_connection_watchdog,omitempty"`
+	DisableCleanup            bool `mapstructure:"disable_cleanup,omitempty"`
+	DisableConnectionWatchdog bool `mapstructure:"disable_connection_watchdog,omitempty"`
 }
 
 // NewDefaultConfig returns a new Config with sensible defaults. It's recommended that NewDefaultConfig be used.

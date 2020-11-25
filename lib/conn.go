@@ -75,6 +75,11 @@ func defaultConnCallback(s *Server, ip string, timeout ...time.Duration) (*Conn,
 	return &tlsConn, nil
 }
 
+// send fills the Message with the required metadata and sends it.
+func (c *Conn) send(m Message) error {
+	return c.server.sendCallback(c, m)
+}
+
 // defaultSendCallback is used to send messages. It exists to allow for testing without actually sending messages.
 func defaultSendCallback(c *Conn, m Message) error {
 	m.SentAt = time.Now()
@@ -106,11 +111,6 @@ func defaultSendCallback(c *Conn, m Message) error {
 	}
 
 	return nil
-}
-
-// send fills the Message with the required metadata and sends it.
-func (c *Conn) send(m Message) error {
-	return c.server.sendCallback(c, m)
 }
 
 // getHostname uses the local network name to fetch the host system's name.

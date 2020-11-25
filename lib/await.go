@@ -31,8 +31,8 @@ import (
 type awaitables []awaitable
 
 type awaitable struct {
-	notify     chan Message
-	checkFunc  func(Message) bool
+	notify    chan Message
+	checkFunc func(Message) bool
 }
 
 // ErrTimeout is produced by functions called with a timeout when the allocated time is exceeded
@@ -48,7 +48,7 @@ func (s *Server) awaitTask(taskId string, timeout ...time.Duration) (Result, err
 
 	s.awaitedLock.Lock()
 	s.awaited = append(s.awaited, awaitable{
-		notify:    notifyChan,
+		notify: notifyChan,
 		checkFunc: func(msg Message) bool {
 			if msg.Operation == OperationJobResult {
 				res, err := decodeResult(msg.Data)
@@ -84,16 +84,16 @@ func (s *Server) awaitTask(taskId string, timeout ...time.Duration) (Result, err
 
 // awaitTransfer blocks the execution until the node sends a transfer acknowledgement or reports a transfer error.
 // If an error message is received i'll be returned. An empty string means no error was raised.
-func (s *Server) awaitTransfer(n Node, timeout ...time.Duration) error  {
+func (s *Server) awaitTransfer(n Node, timeout ...time.Duration) error {
 	notifyChan := make(chan Message, 1)
 	disconnectChan := newDisconnectionWatchdog(s, n, 2)
 
 	s.awaitedLock.Lock()
 	s.awaited = append(s.awaited, awaitable{
-		notify:    notifyChan,
+		notify: notifyChan,
 		checkFunc: func(msg Message) bool {
 			if msg.Operation == OperationTransferFailed || msg.Operation == OperationTransferAcknowledge &&
-				msg.Addr.IP.Equal(n.Addr.IP){
+				msg.Addr.IP.Equal(n.Addr.IP) {
 				return true
 			}
 

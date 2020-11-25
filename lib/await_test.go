@@ -39,7 +39,7 @@ func TestAwaitTaskWithTimeoutReceived(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		_, err := s.awaitTask("test", time.Second * 10)
+		_, err := s.awaitTask("test", time.Second*10)
 		if err != nil {
 			t.Fail()
 		}
