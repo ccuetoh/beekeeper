@@ -33,16 +33,25 @@ var scanCmd = &cobra.Command{
 	Use:   "scan [-t token] [-p port]",
 	Short: "Scans the local network for available workers and displays them",
 	Run: func(cmd *cobra.Command, _ []string) {
-		var workers beekeeper.Workers
+		var nodes beekeeper.Nodes
 		var err error
 
-		workers, err = beekeeper.ScanLocalWithToken(beekeeper.DefaultScanTime, cfg.Token)
+		server := beekeeper.NewServer(cfg)
+		go func() {
+			defer server.Stop()
+			err := server.Start()
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+		nodes, err = server.Scan(beekeeper.DefaultScanTime)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 			return
 		}
 
-		workers.PrettyPrint()
+		nodes.PrettyPrint()
 	},
 }
 

@@ -29,7 +29,7 @@ import (
 )
 
 func TestBroadcastMessage(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
+	sv, _, sendChan := startPrimaryTestChannels()
 
 	msg := newMessage()
 	msg.Operation = OperationStatus
@@ -39,7 +39,7 @@ func TestBroadcastMessage(t *testing.T) {
 		return
 	}
 
-	err = broadcastMessage(msg, true)
+	err = sv.broadcastMessage(msg, true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -67,13 +67,9 @@ func TestBroadcastMessage(t *testing.T) {
 }
 
 func TestBroadcastOperation(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
+	sv, _, sendChan := startPrimaryTestChannels()
 
-	connectFunction = func(ip string, timeout ...time.Duration) (*nodeConn, error) {
-		return &nodeConn{}, nil
-	}
-
-	err := broadcastOperation(OperationTransferAcknowledge, true)
+	err := sv.broadcastOperation(OperationTransferAcknowledge, true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -84,41 +80,6 @@ func TestBroadcastOperation(t *testing.T) {
 		select {
 		case msgReceived := <-sendChan:
 			if msgReceived.Operation == OperationTransferAcknowledge {
-				received += 1
-			} else {
-				t.Fail()
-				return
-			}
-
-			if received == 254 {
-				return
-			}
-		case <-time.After(time.Second):
-			t.Fail()
-			return
-		}
-	}
-}
-
-func TestBroadcastOperationWithToken(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
-
-	connectFunction = func(ip string, timeout ...time.Duration) (*nodeConn, error) {
-		return &nodeConn{}, nil
-	}
-
-	err := broadcastOperationWithToken(OperationTransferAcknowledge, "testToken", true)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	received := 0
-	for {
-		select {
-		case msgReceived := <-sendChan:
-			if msgReceived.Operation == OperationTransferAcknowledge &&
-				msgReceived.Token == "testToken" {
 				received += 1
 			} else {
 				t.Fail()

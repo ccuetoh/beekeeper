@@ -35,12 +35,12 @@ func TestMessage_Summary(t *testing.T) {
 }
 
 func TestMessage_Respond(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
+	s, _, sendChan := startPrimaryTestChannels()
 
 	msg1 := getTestMessage()
 	msg2 := getTestMessage()
 
-	err := msg1.respond(msg2)
+	err := msg1.respond(s, msg2)
 	if err != nil {
 		t.Error(err)
 		return

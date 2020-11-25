@@ -27,6 +27,7 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"fmt"
+	"log"
 	"net"
 	"time"
 )
@@ -76,7 +77,7 @@ type Message struct {
 	NodeInfo      NodeInfo
 }
 
-// NodeInfo holds additional info abut a worker.
+// NodeInfo holds additional info abut a node.
 type NodeInfo struct {
 	CPUTemp float32
 	Usage   float32
@@ -107,9 +108,9 @@ func (m Message) encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// worker uses the Message's metadata to construct a worker object.
-func (m Message) worker() Worker {
-	return Worker{
+// node uses the Message's metadata to construct a node object.
+func (m Message) node() Node {
+	return Node{
 		Addr:   m.Addr,
 		Name:   m.From,
 		Status: m.Status,
@@ -130,8 +131,14 @@ func (m Message) summary() string {
 		addr, m.From, m.Operation.String(), len(m.Data))
 }
 
-// respond creates a new nodeConn and sends a Message through it.
-func (m Message) respond(response Message) error {
+// respond creates a new Conn and sends a Message through it.
+func (m Message) respond(s *Server, response Message) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Fatal error while responding to node %s\n", m.From)
+		}
+	}()
+
 	var addr string
 	if m.RespondOnPort != 0 {
 		addr = fmt.Sprintf("%s:%d", m.Addr.IP.String(), m.RespondOnPort)
@@ -139,7 +146,7 @@ func (m Message) respond(response Message) error {
 		addr = m.Addr.IP.String()
 	}
 
-	conn, err := newNodeConn(addr)
+	conn, err := s.connect(addr)
 	if err != nil {
 		return err
 	}
@@ -156,8 +163,8 @@ func (m Message) respond(response Message) error {
 
 // isTokenMatching compares the a Message's token to the one present in the local node info and returns whether it's
 // matching or not.
-func (m Message) isTokenMatching() bool {
-	if m.Token == mySettings.Config.Token {
+func (m Message) isTokenMatching(token2 string) bool {
+	if m.Token == token2 {
 		return true
 	}
 

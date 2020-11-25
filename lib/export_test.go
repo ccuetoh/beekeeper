@@ -31,46 +31,47 @@ var testWasStarted = false
 
 var receiveChan = make(chan Message)
 var sendChan = make(chan Message, 500)
+var server *Server
 
-func startPrimaryTestChannels() (chan Message, chan Message) {
+func startPrimaryTestChannels() (*Server, chan Message, chan Message) {
 	if testWasStarted {
-		return receiveChan, sendChan
+		return server, receiveChan, sendChan
 	}
 
 	testWasStarted = true
 
-	serveCallbackFunction = func(port int, handler func(chan Message, net.Conn)) (chan Message, error) {
+	config := NewDefaultConfig()
+	config.DisableConnectionWatchdog = true
+	WatchdogSleep = time.Millisecond * 100
+	server = NewServer(config)
+
+	server.serverCallback = func(config Config, handler func(chan Message, net.Conn)) (chan Message, error) {
 		return receiveChan, nil
 	}
 
-	sendFunction = func(c *nodeConn, m Message) error {
+	server.sendCallback = func(c *Conn, m Message) error {
 		sendChan <- m
 		return nil
 	}
 
-	connectFunction = func(ip string, timeout ...time.Duration) (*nodeConn, error) {
-		return &nodeConn{}, nil
+	server.connCallback = func(_ *Server, ip string, timeout ...time.Duration) (*Conn, error) {
+		return &Conn{server: server}, nil
 	}
 
-	WatchdogSleep = time.Millisecond * 100
-
-	config := NewDefaultConfig()
-	config.DisableConnectionWatchdog = true
-
 	go func() {
-		sv := NewServer(config)
-		err := sv.Start()
+		err := server.Start()
 		if err != nil {
 			panic(err)
 		}
 	}()
 
-	return receiveChan, sendChan
+	return server, receiveChan, sendChan
 }
 
-func getTestWorkers() Workers {
-	return Workers{
+func getTestNodes(s *Server) Nodes {
+	return Nodes{
 		{
+			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker1",
 			Status: StatusIDLE,
@@ -81,6 +82,7 @@ func getTestWorkers() Workers {
 			},
 		},
 		{
+			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.2"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker2",
 			Status: StatusIDLE,
@@ -91,6 +93,7 @@ func getTestWorkers() Workers {
 			},
 		},
 		{
+			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.3"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker3",
 			Status: StatusIDLE,
@@ -101,6 +104,7 @@ func getTestWorkers() Workers {
 			},
 		},
 		{
+			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.4"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker4",
 			Status: StatusIDLE,

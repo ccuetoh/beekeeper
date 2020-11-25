@@ -28,10 +28,12 @@ import (
 	"testing"
 )
 
-func TestWorkers_getOperatingSystems(t *testing.T) {
-	workers := getTestWorkers()
+func TestNodes_getOperatingSystems(t *testing.T) {
+	s, _, _ := startPrimaryTestChannels()
 
-	opsys := workers.getOperatingSystems()
+	nodes := getTestNodes(s)
+
+	opsys := nodes.getOperatingSystems()
 	expect := []string{"linux", "darwin", "windows"}
 
 	sort.Strings(opsys)
@@ -43,6 +45,7 @@ func TestWorkers_getOperatingSystems(t *testing.T) {
 	}
 }
 
-func TestWorkers_PrettyPrint(t *testing.T) {
-	getTestWorkers().PrettyPrint() // Panic check
+func TestNodes_PrettyPrint(t *testing.T) {
+	s, _, _ := startPrimaryTestChannels()
+	getTestNodes(s).PrettyPrint() // Panic check
 }

@@ -23,27 +23,39 @@
 package beekeeper
 
 import (
+	"crypto/tls"
 	"errors"
 	"log"
 	"net"
 	"strconv"
 	"sync"
+	"time"
 )
 
 // ErrTerminated is returned when a server gets terminated
 var ErrTerminated = errors.New("terminated")
 
-// onlineWorkers keeps a list of all the Workers that have responded to this node.
-var onlineWorkers Workers
-var onlineWorkersLock sync.RWMutex
-
-// serveCallbackFunction allows for testing of the callback.
-var serveCallbackFunction = defaultServeCallback
-
 // Server is a node server, that holds the configuration to be used.
 type Server struct {
-	Config          Config
+	// Public
+	Config Config
+	Status Status
+
+	// Termination
 	terminationChan chan bool
+
+	// Active nodes
+	nodes     Nodes
+	nodesLock sync.RWMutex
+
+	// Callbacks
+	sendCallback   func(*Conn, Message) error
+	connCallback   func(*Server, string, ...time.Duration) (*Conn, error)
+	serverCallback func(Config, func(chan Message, net.Conn)) (chan Message, error)
+
+	// Awaited
+	awaited     awaitables
+	awaitedLock sync.Mutex
 }
 
 // NewServer creates a Server struct using the given config or the default if none is provided.
@@ -55,35 +67,60 @@ func NewServer(configs ...Config) *Server {
 		config = NewDefaultConfig()
 	}
 
+	if config.TLSCertificate == nil || config.TLSPrivateKey == nil {
+		var err error
+		config.TLSCertificate, config.TLSPrivateKey, err = getTLSCache()
+		if err != nil {
+			log.Println("Creating TLS certificates. This can take a while but is only done once")
+
+			config.TLSCertificate, config.TLSPrivateKey, err = newSelfSignedCert()
+			if err != nil {
+				log.Panicln("Unable to create TLS certificate")
+			}
+
+			err = cacheTLS(config.TLSCertificate, config.TLSPrivateKey)
+			if err != nil {
+				log.Println("Unable to cache TLS certificate:", err.Error())
+			}
+		}
+	}
+
 	return &Server{
 		Config:          config,
 		terminationChan: make(chan bool),
+		connCallback:    defaultConnCallback,
+		sendCallback:    defaultSendCallback,
+		serverCallback:  defaultServeCallback,
 	}
 }
 
 // Start serves a node and blocks.
 func (s *Server) Start() error {
-	mySettings = nodeSettingsFromConfig(s.Config) // Global settings var
+	log.Println("Starting server")
 
-	msgChan, err := serveCallbackFunction(s.Config.InboundPort, defaultHandler)
+	msgChan, err := s.serverCallback(s.Config, defaultHandler)
 	if err != nil {
 		return err
 	}
+
+	log.Printf("Listening on port %d\n", s.Config.InboundPort)
 
 	for {
 		select {
 		case <-s.terminationChan:
 			return ErrTerminated
 		case msg := <-msgChan:
-			authed := msg.isTokenMatching()
+			authed := msg.isTokenMatching(s.Config.Token)
 			if !authed {
 				continue
 			}
 
-			logReceivedIfDebug(msg)
+			if s.Config.Debug {
+				log.Println("Received:", msg.summary())
+			}
 
-			onlineWorkers = onlineWorkers.update(msg.worker())
-			go handleMessage(msg)
+			s.updateNode(msg.node())
+			go s.handleMessage(msg)
 		}
 	}
 }
@@ -93,36 +130,72 @@ func (s *Server) Stop() {
 	s.terminationChan <- true
 }
 
-// handleMessage takes a Message from the node's server and runs the corresponding operation callback.
-func handleMessage(msg Message) {
-	switch msg.Operation {
-	case OperationJobResult:
-		jobResultCallback(msg) // Primary
-
-	case OperationTransferAcknowledge:
-		transferStatusCallback(msg) // Primary
-
-	case OperationTransferFailed:
-		transferStatusCallback(msg) // Primary
-
-	case OperationStatus:
-		statusCallback(msg) // Worker
-
-	case OperationJobTransfer:
-		jobTransferCallback(msg) // Worker
-
-	case OperationJobExecute:
-		jobExecuteCallback(msg) // Worker
+// Scan broadcasts a status request to all IPs and waits the provided amount for a response.
+func (s *Server) Scan(waitTime time.Duration) (Nodes, error) {
+	err := s.broadcastOperation(OperationStatus, false)
+	if err != nil {
+		return nil, err
 	}
 
-	onlineWorkers = onlineWorkers.update(msg.worker())
+	time.Sleep(waitTime)
+
+	s.nodesLock.RLock()
+	defer s.nodesLock.RUnlock()
+
+	return s.nodes, nil
+}
+
+// handleMessage takes a Message from the node's server and runs the corresponding operation callback.
+func (s *Server) handleMessage(msg Message) {
+	switch msg.Operation {
+	case OperationJobResult:
+		jobResultCallback(s, msg) // Primary
+
+	case OperationTransferAcknowledge:
+		transferStatusCallback(s, msg) // Primary
+
+	case OperationTransferFailed:
+		transferStatusCallback(s, msg) // Primary
+
+	case OperationStatus:
+		statusCallback(s, msg) // Node
+
+	case OperationJobTransfer:
+		jobTransferCallback(s, msg) // Node
+
+	case OperationJobExecute:
+		jobExecuteCallback(s, msg) // Node
+	}
+
+	s.updateNode(msg.node())
+}
+
+// isOnline searches the node in the server's node slice
+func (s *Server) isOnline(n Node) bool {
+	s.nodesLock.Lock()
+	defer s.nodesLock.Unlock()
+
+	for _, node := range s.nodes {
+		if n.Equals(node) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // defaultServeCallback listens for TCP connections and sends the processed output of handler to the c chan.
-func defaultServeCallback(port int, handler func(chan Message, net.Conn)) (chan Message, error) {
+func defaultServeCallback(config Config, handler func(chan Message, net.Conn)) (chan Message, error) {
 	c := make(chan Message)
 
-	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	cer, err := tls.X509KeyPair(config.TLSCertificate, config.TLSPrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}, InsecureSkipVerify: true}
+
+	l, err := tls.Listen("tcp", ":"+strconv.Itoa(config.InboundPort), tlsConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +206,7 @@ func defaultServeCallback(port int, handler func(chan Message, net.Conn)) (chan 
 		for {
 			conn, err := l.Accept()
 			if err != nil {
+				log.Println("Received invalid connection:", err)
 				continue
 			}
 
@@ -143,11 +217,4 @@ func defaultServeCallback(port int, handler func(chan Message, net.Conn)) (chan 
 	}()
 
 	return c, nil
-}
-
-// logReceivedIfDebug prints a Message summary if debug mode is configured.
-func logReceivedIfDebug(msg Message) {
-	if mySettings.Config.Debug {
-		log.Println("Received:", msg.summary())
-	}
 }

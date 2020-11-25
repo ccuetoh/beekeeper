@@ -29,7 +29,7 @@ import (
 
 // startConnectionWatchdog will periodically clear the online workers list and broadcastOperation a new status request to
 // refill it.
-func startConnectionWatchdog(terminate chan bool) {
+func startConnectionWatchdog(s *Server, terminate chan bool) {
 	for {
 		select {
 		case <-terminate:
@@ -37,8 +37,8 @@ func startConnectionWatchdog(terminate chan bool) {
 		default:
 			time.Sleep(WatchdogSleep)
 
-			onlineWorkers = Workers{}
-			err := broadcastOperation(OperationStatus, false)
+			s.nodes = Nodes{}
+			err := s.broadcastOperation(OperationStatus, false)
 			if err != nil {
 				log.Println("Unable to broadcast as watchdog:", err.Error())
 			}
@@ -46,9 +46,9 @@ func startConnectionWatchdog(terminate chan bool) {
 	}
 }
 
-// newDisconnectionWatchdog checks every WatchdogSleep seconds if a worker has disconnected. If the node
+// newDisconnectionWatchdog checks every WatchdogSleep seconds if a node has disconnected. If the node
 // doesn't respond maxDisconnections time, the returned chan receives false.
-func newDisconnectionWatchdog(w Worker, maxDisconnections int) chan bool {
+func newDisconnectionWatchdog(s *Server, n Node, maxDisconnections int) chan bool {
 	c := make(chan bool)
 	var disconnections = 0
 
@@ -56,7 +56,7 @@ func newDisconnectionWatchdog(w Worker, maxDisconnections int) chan bool {
 		for {
 			time.Sleep(WatchdogSleep)
 
-			if w.isOnline() {
+			if s.isOnline(n) {
 				disconnections = 0
 			} else {
 				disconnections += 1

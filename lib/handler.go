@@ -31,7 +31,7 @@ import (
 )
 
 // defaultHandler will process a TCPConnection and return a Message object with its data if possible. Connections
-// coming form the host machine are discarded.
+// coming from the host machine are discarded.
 func defaultHandler(c chan Message, conn net.Conn) {
 	isPipe := conn.RemoteAddr().String() == "pipe"
 

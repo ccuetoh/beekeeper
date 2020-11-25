@@ -28,7 +28,9 @@ import (
 )
 
 func TestWorkers_DistributeJobNoWorkers(t *testing.T) {
-	err := Workers{}.DistributeJob("", "")
+	s, _, _ := startPrimaryTestChannels()
+
+	err := s.DistributeJob(getTestNodes(s), "", "")
 	if err == nil {
 		t.Fail()
 		return
@@ -38,7 +40,7 @@ func TestWorkers_DistributeJobNoWorkers(t *testing.T) {
 // Getting this to work is tricky because an additional dependencies are needed for testing. Will implement later
 /*
 func TestWorkers_DistributeJob(t *testing.T) {
-	workers := getTestWorkers()
+	workers := getTestNodes()
 	_, sendChan := startPrimaryTestChannels()
 
 	err := workers.DistributeJob("github.com/PLACEHOLDER/PLACEHOLDER", "PLACEHOLDER")

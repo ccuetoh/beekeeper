@@ -51,19 +51,18 @@ For a detailed usage guide visit https://www.beekeeper.dev`,
 		c := make(chan os.Signal)
 		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-		log.Println("Starting server...")
 		sv := beekeeper.NewServer(instanceCfg)
 
 		go func() {
 			<-c
-			fmt.Println("Shutting down server...")
+			log.Println("Shutting down server")
 			sv.Stop()
 			os.Exit(0)
 		}()
 
 		err := sv.Start()
 		if err != nil {
-			fmt.Println("Unable to start worker server:", err.Error())
+			fmt.Println("Unable to start server:", err.Error())
 		}
 	},
 }

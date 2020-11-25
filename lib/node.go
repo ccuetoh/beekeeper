@@ -35,36 +35,29 @@ import (
 	"time"
 )
 
-// Worker represents a worker node.
-type Worker struct {
+// Node represents a node node.
+type Node struct {
 	Addr   *net.TCPAddr
 	Name   string
 	Status Status
 	Info   NodeInfo
+	server *Server
 }
 
 // Equals compares two workers. The comparison is made using the IP addresses of the nodes.
-func (w Worker) Equals(w2 Worker) bool {
-	return w.Addr.IP.Equal(w2.Addr.IP)
+func (n Node) Equals(w2 Node) bool {
+	return n.Addr.IP.Equal(w2.Addr.IP)
 }
 
-// isOnline searches the worker in the onlineWorkers slice
-func (w Worker) isOnline() bool {
-	onlineWorkersLock.Lock()
-	defer onlineWorkersLock.Unlock()
-
-	for _, worker := range onlineWorkers {
-		if w.Equals(worker) {
-			return true
+// send creates a new Conn and sends the provided Message.
+func (n Node) send(m Message) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Fatal error while sending to node %s: %s\n", m.From, r)
 		}
-	}
+	}()
 
-	return false
-}
-
-// send creates a new nodeConn and sends the provided Message.
-func (w Worker) send(m Message) error {
-	conn, err := newNodeConn(w.Addr.IP.String())
+	conn, err := n.server.connect(n.Addr.IP.String())
 	if err != nil {
 		return err
 	}
@@ -74,30 +67,27 @@ func (w Worker) send(m Message) error {
 		return err
 	}
 
-	err = conn.Close()
-	if err != nil {
-		log.Println("Unable to close connection with node:", err)
-	}
+	defer conn.Close()
 
 	return nil
 }
 
-// Workers is a Worker slice
-type Workers []Worker
+// Nodes is a Node slice
+type Nodes []Node
 
 // getOperatingSystems iterates the workers and returns a set of the GOOSs found.
-func (w Workers) getOperatingSystems() (opSys []string) {
-	for _, worker := range w {
+func (n Nodes) getOperatingSystems() (opSys []string) {
+	for _, node := range n {
 		duplicate := false
 
 		for _, ops := range opSys {
-			if ops == worker.Info.OS {
+			if ops == node.Info.OS {
 				duplicate = true
 			}
 		}
 
 		if !duplicate {
-			opSys = append(opSys, worker.Info.OS)
+			opSys = append(opSys, node.Info.OS)
 		}
 	}
 
@@ -105,7 +95,7 @@ func (w Workers) getOperatingSystems() (opSys []string) {
 }
 
 // PrettyPrint prints a formatted table of workers.
-func (w Workers) PrettyPrint(writer ...io.Writer) {
+func (n Nodes) PrettyPrint(writer ...io.Writer) {
 	var out io.Writer
 	if len(writer) > 0 {
 		out = writer[0]
@@ -118,48 +108,50 @@ func (w Workers) PrettyPrint(writer ...io.Writer) {
 	table.SetHeader([]string{"Name", "Address", "Status"})
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
 
-	for _, worker := range w {
-		table.Append([]string{worker.Name, worker.Addr.IP.String(), worker.Status.String()})
+	for _, node := range n {
+		table.Append([]string{node.Name, node.Addr.IP.String(), node.Status.String()})
 	}
 
 	table.Render()
 }
 
-// update adds new workers if not present and replaces old ones if matching.
-func (w Workers) update(newWorker Worker) Workers {
-	onlineWorkersLock.Lock()
-	defer onlineWorkersLock.Unlock()
+// updateNode adds new workers if not present and replaces old ones if matching.
+func (s *Server) updateNode(node2 Node) {
+	s.nodesLock.Lock()
+	defer s.nodesLock.Unlock()
 
-	for i, worker := range w {
-		if worker.Addr.IP.Equal(newWorker.Addr.IP) {
-			w[i] = newWorker
-			return w
+	node2.server = s
+
+	for i, node := range s.nodes {
+		if node.Addr.IP.Equal(node2.Addr.IP) {
+			s.nodes[i] = node2
+			return
 		}
 	}
 
-	return append(w, newWorker)
+	s.nodes = append(s.nodes, node2)
 }
 
-// Execute runs a task on the provided Workers and blocks until a Result is sent back. Optionally a timeout
+// Execute runs a task on the provided Nodes and blocks until a Result is sent back. Optionally a timeout
 // argument can be passed.
-func (w Workers) Execute(t Task, timeout ...time.Duration) ([]Result, error) {
+func (n Nodes) Execute(t Task, timeout ...time.Duration) ([]Result, error) {
 	resultsChan := make(chan Result)
 	errChan := make(chan error)
 
-	for _, worker := range w {
-		go func(worker Worker, rc chan Result, ec chan error) {
-			res, err := worker.Execute(t, timeout...)
+	for _, node := range n {
+		go func(node Node, rc chan Result, ec chan error) {
+			res, err := node.Execute(t, timeout...)
 			if err != nil {
-				ec <- fmt.Errorf("worker %s error: %s", worker.Name, err.Error())
+				ec <- fmt.Errorf("node %s error: %s", node.Name, err.Error())
 			} else {
 				rc <- res
 			}
-		}(worker, resultsChan, errChan)
+		}(node, resultsChan, errChan)
 	}
 
 	var results []Result
 
-	for len(results) != len(w) {
+	for len(results) != len(n) {
 		select {
 		case err := <-errChan:
 			return nil, err
@@ -173,10 +165,10 @@ func (w Workers) Execute(t Task, timeout ...time.Duration) ([]Result, error) {
 }
 
 // sort orders a slice of workers based on their IP address.
-func (w Workers) sort() Workers {
-	sort.Slice(w, func(i, j int) bool {
-		return bytes.Compare(w[i].Addr.IP, w[j].Addr.IP) < 0
+func (n Nodes) sort() Nodes {
+	sort.Slice(n, func(i, j int) bool {
+		return bytes.Compare(n[i].Addr.IP, n[j].Addr.IP) < 0
 	})
 
-	return w
+	return n
 }

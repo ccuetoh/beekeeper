@@ -51,10 +51,8 @@ func main() {
 func buildJob(pkgName string, function string, distributions []string) (map[string]string, error) {
 	content := []byte(generateBuildFile(pkgName, function))
 
-	sep := string(filepath.Separator)
-
-	outPath := "." + sep + ".beekeeper"
-	filePath := outPath + sep + "temp.go"
+	outPath := filepath.FromSlash("./.beekeeper")
+	filePath := filepath.FromSlash(outPath + "/temp.go")
 
 	if _, err := os.Stat(outPath); os.IsNotExist(err) {
 		err = os.Mkdir(outPath, 0700)
@@ -77,7 +75,7 @@ func buildJob(pkgName string, function string, distributions []string) (map[stri
 			return nil, err
 		}
 
-		outFile := outPath + sep + "temp_" + goos
+		outFile := filepath.FromSlash(outPath + "/temp_" + goos)
 
 		cmd := exec.Command("go", "build", "-o", outFile, "-ldflags", "-s -w", filePath)
 

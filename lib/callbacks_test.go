@@ -28,12 +28,12 @@ import (
 )
 
 func TestStatusCallback(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
+	sv, _, sendChan := startPrimaryTestChannels()
 
 	msg := getTestMessage()
 	msg.Operation = OperationStatus
 
-	go handleMessage(msg)
+	go sv.handleMessage(msg)
 
 	select {
 	case response := <-sendChan:
@@ -50,13 +50,13 @@ func TestStatusCallback(t *testing.T) {
 }
 
 func TestJobTransferCallback_Acknowledge(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
+	sv, _, sendChan := startPrimaryTestChannels()
 
 	msg := getTestMessage()
 	msg.Data = []byte("test")
 	msg.Operation = OperationJobTransfer
 
-	go handleMessage(msg)
+	go sv.handleMessage(msg)
 
 	select {
 	case response := <-sendChan:
@@ -73,13 +73,13 @@ func TestJobTransferCallback_Acknowledge(t *testing.T) {
 }
 
 func TestJobTransferCallback_Failed(t *testing.T) {
-	_, sendChan := startPrimaryTestChannels()
+	sv, _, sendChan := startPrimaryTestChannels()
 
 	msg := getTestMessage()
 	msg.Operation = OperationJobTransfer
 	msg.Data = []byte{}
 
-	go handleMessage(msg)
+	go sv.handleMessage(msg)
 
 	select {
 	case response := <-sendChan:

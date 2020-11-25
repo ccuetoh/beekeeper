@@ -30,19 +30,18 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
 // flake holds a SonyFlake object for UUID creation. The start time is time.Now().
 var flake = sonyflake.NewSonyflake(sonyflake.Settings{StartTime: time.Now()})
 
-// Execute runs a task on the given worker nodes and block until all task results are retrieved.
+// Execute runs a task on the given node nodes and block until all task results are retrieved.
 // It will fail if no job is present on the node systems. An optional timeout parameter can be provided.
-func (w Worker) Execute(t Task, timeout ...time.Duration) (res Result, err error) {
-	if !mySettings.Config.DisableConnectionWatchdog {
-		terminateChan := make(chan bool)
-		go startConnectionWatchdog(terminateChan)
+func (n Node) Execute(t Task, timeout ...time.Duration) (res Result, err error) {
+	if !n.server.Config.DisableConnectionWatchdog {
+		terminateChan := make(chan bool, 1)
+		go startConnectionWatchdog(n.server, terminateChan)
 		defer func() {
 			terminateChan <- true
 		}()
@@ -58,7 +57,7 @@ func (w Worker) Execute(t Task, timeout ...time.Duration) (res Result, err error
 		return Result{}, err
 	}
 
-	err = w.send(Message{
+	err = n.send(Message{
 		Operation: OperationJobExecute,
 		Data:      data,
 	})
@@ -66,12 +65,7 @@ func (w Worker) Execute(t Task, timeout ...time.Duration) (res Result, err error
 		return Result{}, err
 	}
 
-	if len(timeout) > 0 {
-		res, err = awaitTaskWithTimeout(t.UUID, timeout[0])
-	} else {
-		res = awaitTask(t.UUID)
-	}
-
+	res, err = n.server.awaitTask(t.UUID, timeout...)
 	if err != nil {
 		return Result{}, err
 	}
@@ -90,11 +84,7 @@ func runLocalJob(t Task) (Result, error) {
 		return Result{}, err
 	}
 
-	sep := string(filepath.Separator)
-	route := []string{".", ".beekeeper", "job.bin"}
-
-	path := strings.Join(route, sep)
-
+	path := filepath.FromSlash("./.beekeeper/job.bin")
 	cmd := exec.Command(path)
 
 	stdin, err := cmd.StdinPipe()

@@ -44,8 +44,6 @@ func WrapJob(job func(*Task)) {
 		return
 	}
 
-	t.NodeName = mySettings.Name
-
 	defer func() {
 		if r := recover(); r != nil {
 			newErrorResult(fmt.Errorf("%s", r)).printEncode()

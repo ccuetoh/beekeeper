@@ -30,7 +30,6 @@ import (
 // Task is used to run a job. In order to create a Task use NewTask; not this structure directly.
 type Task struct {
 	UUID      string
-	NodeName  string
 	Arguments map[string]interface{}
 	Returns   map[string]interface{}
 	Error     string

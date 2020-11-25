@@ -29,9 +29,9 @@ import (
 )
 
 func TestWorkers_Execute(t *testing.T) {
-	receiveChan, sendChan := startPrimaryTestChannels()
+	s, receiveChan, sendChan := startPrimaryTestChannels()
 
-	workers := getTestWorkers()
+	nodes := getTestNodes(s)
 	task := NewTask()
 
 	go func() {
@@ -66,14 +66,14 @@ func TestWorkers_Execute(t *testing.T) {
 
 				receiveChan <- response
 
-				if received == len(workers) {
+				if received == len(nodes) {
 					return
 				}
 			}
 		}
 	}()
 
-	_, err := workers.Execute(task, time.Second)
+	_, err := nodes.Execute(task, time.Second)
 	if err != nil {
 		t.Error(err)
 		return

@@ -92,11 +92,11 @@ func (m *Monitor) Run(configs ...Config) {
 
 	go func() {
 		for {
-			onlineWorkersLock.Lock()
-			onlineWorkers = Workers{}
-			onlineWorkersLock.Unlock()
+			m.server.nodesLock.Lock()
+			m.server.nodes = Nodes{}
+			m.server.nodesLock.Unlock()
 
-			err := broadcastMessage(Message{
+			err := m.server.broadcastMessage(Message{
 				Operation:     OperationStatus,
 				Token:         config.Token,
 				RespondOnPort: config.InboundPort}, true)
@@ -115,9 +115,9 @@ func (m *Monitor) Run(configs ...Config) {
 			}
 
 			m.App.QueueUpdateDraw(func() {
-				onlineWorkersLock.RLock()
-				m.Render(onlineWorkers)
-				onlineWorkersLock.RUnlock()
+				m.server.nodesLock.RLock()
+				m.Render(m.server.nodes)
+				m.server.nodesLock.RUnlock()
 			})
 
 		}
@@ -130,13 +130,16 @@ func (m *Monitor) Run(configs ...Config) {
 }
 
 // Render prints the Monitor to the console.
-func (m *Monitor) Render(ws Workers) {
+func (m *Monitor) Render(ns Nodes) {
+	m.server.nodesLock.RLock()
+	defer m.server.nodesLock.RUnlock()
+
 	// Order the workers so their position keeps regular between updates
-	ws = ws.sort()
+	ns = ns.sort()
 
 	// Generate details
 	var detailBoxes []*tview.Flex
-	for _, w := range ws {
+	for _, w := range ns {
 		detailBoxes = append(detailBoxes, newWorkerDetailBox(w))
 	}
 
@@ -183,7 +186,7 @@ func (m *Monitor) Stop() {
 	m.App.Stop()
 }
 
-// pageContentFromChunk creates a new detailed view box of a Worker to be rendered on the Monitor.
+// pageContentFromChunk creates a new detailed view box of a Node to be rendered on the Monitor.
 func pageContentFromChunk(chunk []*tview.Flex, pageNum int, totalPages int) *tview.Flex {
 	content := tview.NewFlex().SetDirection(tview.FlexRow)
 
@@ -222,8 +225,8 @@ func pageContentFromChunk(chunk []*tview.Flex, pageNum int, totalPages int) *tvi
 	return content
 }
 
-// newWorkerDetailBox creates a new detailed view box of a Worker to be rendered on the Monitor.
-func newWorkerDetailBox(w Worker) *tview.Flex {
+// newWorkerDetailBox creates a new detailed view box of a Node to be rendered on the Monitor.
+func newWorkerDetailBox(w Node) *tview.Flex {
 	ip := tview.NewFlex()
 	ip.SetTitle("IP").
 		SetBorder(true).

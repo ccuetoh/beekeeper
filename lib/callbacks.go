@@ -33,32 +33,17 @@ import (
 )
 
 // jobResultCallback is the callback for the JobResult operation.
-func jobResultCallback(msg Message) {
-	res, err := decodeResult(msg.Data)
-	if err != nil {
-		log.Println("Error: Unable to decode task response")
-		return
-	}
-
-	found := processAwaitedTask(res)
-
-	if !found {
-		log.Printf("Warning: Received a response for task %s, but wasn't expecting it\n", res.UUID)
-	}
+func jobResultCallback(s *Server, msg Message) {
+	s.checkAwaited(msg)
 }
 
 // transferStatusCallback is the callback for the JobTransferAcknowledge and JobTransferFailed operations.
-func transferStatusCallback(msg Message) {
-	found := processAwaitedTransfer(msg)
-
-	if !found {
-		log.Printf("Warning: Received a transfer status from %s, but wasn't expecting it\n",
-			msg.Addr.IP.String())
-	}
+func transferStatusCallback(s *Server, msg Message) {
+	s.checkAwaited(msg)
 }
 
 // statusCallback is the callback for the Status operation.
-func statusCallback(msg Message) {
+func statusCallback(s *Server, msg Message) {
 	ni := NodeInfo{}
 
 	// CPU Usage
@@ -70,7 +55,7 @@ func statusCallback(msg Message) {
 	// CPU Temp
 	ni.CPUTemp = getCPUTemp()
 
-	err = msg.respond(Message{NodeInfo: ni})
+	err = msg.respond(s, Message{NodeInfo: ni})
 	if err != nil {
 		log.Println("Error while responding to Status request:", err.Error())
 		return
@@ -78,21 +63,21 @@ func statusCallback(msg Message) {
 }
 
 // jobTransferCallback is the callback for the JobTransfer operation.
-func jobTransferCallback(msg Message) {
+func jobTransferCallback(s *Server, msg Message) {
 	log.Println("Transferring new job from node", msg.From)
 
 	folderPath := ".beekeeper"
 	err := createFolderIfNotExist(folderPath)
 	if err != nil {
 		log.Println("Unable to create beekeeper folder:", err.Error())
-		respondTransferError(msg, err.Error())
+		respondTransferError(s, msg, err.Error())
 
 		return
 	}
 
 	if len(msg.Data) == 0 {
 		log.Println("Unable to save job data: empty data field")
-		respondTransferError(msg, "empty data field")
+		respondTransferError(s, msg, "empty data field")
 
 		return
 	}
@@ -101,12 +86,12 @@ func jobTransferCallback(msg Message) {
 	err = saveBinary(binPath, msg.Data)
 	if err != nil {
 		log.Println("Unable to save job data:", err.Error())
-		respondTransferError(msg, err.Error())
+		respondTransferError(s, msg, err.Error())
 
 		return
 	}
 
-	err = msg.respond(Message{Operation: OperationTransferAcknowledge})
+	err = msg.respond(s, Message{Operation: OperationTransferAcknowledge})
 	if err != nil {
 		log.Println("Error while acknowledging transfer:", err.Error())
 
@@ -117,7 +102,7 @@ func jobTransferCallback(msg Message) {
 }
 
 // jobExecuteCallback is the callback for the JobExecute operation.
-func jobExecuteCallback(msg Message) {
+func jobExecuteCallback(s *Server, msg Message) {
 	task, err := decodeTask(msg.Data)
 	if err != nil {
 		log.Println("Unable to read task data:", err.Error())
@@ -126,7 +111,7 @@ func jobExecuteCallback(msg Message) {
 
 	log.Println("Executing task", task.UUID, "from node", msg.From)
 
-	mySettings.Status = StatusWorking
+	s.Status = StatusWorking
 
 	res, err := runLocalJob(task)
 	if err != nil {
@@ -138,7 +123,7 @@ func jobExecuteCallback(msg Message) {
 
 	log.Println("Ran task", task.UUID, "successfully")
 
-	mySettings.Status = StatusIDLE
+	s.Status = StatusIDLE
 
 	resBytes, err := res.encode()
 	if err != nil {
@@ -146,7 +131,7 @@ func jobExecuteCallback(msg Message) {
 		return
 	}
 
-	err = msg.respond(Message{
+	err = msg.respond(s, Message{
 		Operation: OperationJobResult,
 		Data:      resBytes,
 	})
@@ -157,8 +142,8 @@ func jobExecuteCallback(msg Message) {
 }
 
 // respondTransferError is a shorthand for sending a TransferFailed operation to the remote node.
-func respondTransferError(msg Message, errMsg string) {
-	err := msg.respond(Message{Operation: OperationTransferFailed, Data: []byte(errMsg)})
+func respondTransferError(s *Server, msg Message, errMsg string) {
+	err := msg.respond(s, Message{Operation: OperationTransferFailed, Data: []byte(errMsg)})
 	if err != nil {
 		log.Println("Error while reporting transfer error:", err.Error())
 	}

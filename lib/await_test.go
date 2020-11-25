@@ -31,7 +31,7 @@ import (
 )
 
 func TestAwaitTaskWithTimeoutReceived(t *testing.T) {
-	receiveChan, _ := startPrimaryTestChannels()
+	s, receiveChan, _ := startPrimaryTestChannels()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -39,7 +39,7 @@ func TestAwaitTaskWithTimeoutReceived(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		_, err := awaitTaskWithTimeout("test", time.Second)
+		_, err := s.awaitTask("test", time.Second * 10)
 		if err != nil {
 			t.Fail()
 		}
@@ -59,7 +59,7 @@ func TestAwaitTaskWithTimeoutReceived(t *testing.T) {
 }
 
 func TestAwaitTaskWithTimeoutTimeout(t *testing.T) {
-	_, _ = startPrimaryTestChannels()
+	s, _, _ := startPrimaryTestChannels()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -67,7 +67,7 @@ func TestAwaitTaskWithTimeoutTimeout(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		_, err := awaitTaskWithTimeout("test", time.Millisecond*100)
+		_, err := s.awaitTask("test", time.Millisecond*100)
 		if err != nil {
 			if err == ErrTimeout {
 				return
@@ -81,7 +81,7 @@ func TestAwaitTaskWithTimeoutTimeout(t *testing.T) {
 }
 
 func TestAwaitTask(t *testing.T) {
-	receiveChan, _ := startPrimaryTestChannels()
+	s, receiveChan, _ := startPrimaryTestChannels()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -90,7 +90,6 @@ func TestAwaitTask(t *testing.T) {
 		UUID: "test",
 		Task: Task{
 			UUID:      "test",
-			NodeName:  "testNode",
 			Arguments: map[string]interface{}{"testArg1": 1, "testArg2": "testVal"},
 			Returns:   map[string]interface{}{"testRet1": 1, "testRet2": "testVal"},
 			Error:     "tesError",
@@ -99,7 +98,12 @@ func TestAwaitTask(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		res := awaitTask("test")
+		res, err := s.awaitTask("test")
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
 		if !cmp.Equal(res, expect) {
 			t.Fail()
 			return
@@ -121,7 +125,7 @@ func TestAwaitTask(t *testing.T) {
 }
 
 func TestAwaitTransferAndCheckAcknowledge(t *testing.T) {
-	receiveChan, _ := startPrimaryTestChannels()
+	s, receiveChan, _ := startPrimaryTestChannels()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -131,7 +135,7 @@ func TestAwaitTransferAndCheckAcknowledge(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		err := awaitTransferAndCheck(Worker{Addr: addr}, 2)
+		err := s.awaitTransfer(Node{Addr: addr})
 		if err != nil {
 			t.Error(err)
 			return
@@ -150,7 +154,7 @@ func TestAwaitTransferAndCheckAcknowledge(t *testing.T) {
 }
 
 func TestAwaitTransferAndCheckFailed(t *testing.T) {
-	receiveChan, _ := startPrimaryTestChannels()
+	s, receiveChan, _ := startPrimaryTestChannels()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -160,7 +164,7 @@ func TestAwaitTransferAndCheckFailed(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		err := awaitTransferAndCheck(Worker{Addr: addr}, 2)
+		err := s.awaitTransfer(Node{Addr: addr}, 2)
 		if err == nil {
 			t.Fail()
 			return

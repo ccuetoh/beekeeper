@@ -29,18 +29,18 @@ import (
 	"time"
 )
 
-// LoadBalancer contains the data needed to try to select the best worker for a task.
+// LoadBalancer contains the data needed to try to select the best node for a task.
 // Should be created using NewLoadBalancer.
 type LoadBalancer struct {
 	best    int64
-	records workerRecords
+	records nodeRecords
 	lock    sync.Mutex
 }
 
-type workerRecords []*workerRecord
+type nodeRecords []*nodeRecord
 
-type workerRecord struct {
-	worker Worker
+type nodeRecord struct {
+	node   Node
 	record record
 }
 
@@ -49,12 +49,12 @@ type record struct {
 	time int64
 }
 
-// NewLoadBalancer creates and sets up a LoadBalancer from the given Workers.
-func NewLoadBalancer(ws Workers) *LoadBalancer {
-	var records []*workerRecord
+// NewLoadBalancer creates and sets up a LoadBalancer from the given Nodes.
+func NewLoadBalancer(ns Nodes) *LoadBalancer {
+	var records []*nodeRecord
 
-	for _, w := range ws {
-		records = append(records, &workerRecord{worker: w, record: record{time: time.Second.Milliseconds()}})
+	for _, w := range ns {
+		records = append(records, &nodeRecord{node: w, record: record{time: time.Second.Milliseconds()}})
 	}
 
 	return &LoadBalancer{records: records, best: time.Hour.Milliseconds()}
@@ -77,7 +77,7 @@ func (lb *LoadBalancer) Execute(t Task, timeout ...time.Duration) (res Result, e
 	lb.lock.Unlock()
 
 	start := time.Now()
-	res, err = use.worker.Execute(t, timeout...)
+	res, err = use.node.Execute(t, timeout...)
 	if err != nil {
 		return Result{}, err
 	}
@@ -90,10 +90,10 @@ func (lb *LoadBalancer) Execute(t Task, timeout ...time.Duration) (res Result, e
 	return res, nil
 }
 
-// getLowestLoad runs through a slice of workerRecords and returns the lowes loaded ones. On a tie all the tied nodes
+// getLowestLoad runs through a slice of nodeRecords and returns the lowes loaded ones. On a tie all the tied nodes
 // are returned.
-func (rs workerRecords) getLowestLoad() workerRecords {
-	var records workerRecords
+func (rs nodeRecords) getLowestLoad() nodeRecords {
+	var records nodeRecords
 	var lowest = 999999
 
 	for _, wr := range rs {
@@ -107,7 +107,7 @@ func (rs workerRecords) getLowestLoad() workerRecords {
 }
 
 // pick selects the best node based on load, performance or a Softmax algorithm depending on the case.
-func (lb *LoadBalancer) pick() *workerRecord {
+func (lb *LoadBalancer) pick() *nodeRecord {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	softmax := lb.records.getLowestLoad().softmax(lb.best)
@@ -120,9 +120,9 @@ func (lb *LoadBalancer) pick() *workerRecord {
 	}
 }
 
-// softmax implements the Softmax algorithm to give the distributions of a workerRecords object based on performance as
+// softmax implements the Softmax algorithm to give the distributions of a nodeRecords object based on performance as
 // measured by time of execution.
-func (rs workerRecords) softmax(best int64) []float64 {
+func (rs nodeRecords) softmax(best int64) []float64 {
 	var max = float64(rs[0].record.time / best)
 	for _, r := range rs {
 		max = math.Max(max, float64(r.record.time/best))

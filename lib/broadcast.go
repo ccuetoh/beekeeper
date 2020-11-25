@@ -30,22 +30,17 @@ import (
 )
 
 // broadcastMessage sends the Message to all IPs in the local subnetwork.
-func broadcastMessage(msg Message, await bool) error {
-	return broadcastCallback(msg, await)
+func (s *Server) broadcastMessage(msg Message, await bool) error {
+	return broadcastCallback(s, msg, await)
 }
 
 // broadcastOperation sends a Message containing only the op operation to all IPs in the local subnetwork.
-func broadcastOperation(op Operation, await bool) error {
-	return broadcastCallback(Message{Operation: op}, await)
-}
-
-// broadcastOperationWithToken sends a Message with the op operation and the token to all IPs in the local subnetwork.
-func broadcastOperationWithToken(op Operation, token string, await bool) error {
-	return broadcastCallback(Message{Operation: op, Token: token}, await)
+func (s *Server) broadcastOperation(op Operation, await bool) error {
+	return broadcastCallback(s, Message{Operation: op, Token: s.Config.Token}, await)
 }
 
 // broadcastCallback is the callback for the broadcast functions.
-func broadcastCallback(msg Message, await bool) error {
+func broadcastCallback(s *Server, msg Message, await bool) error {
 	myIP, err := getLocalIP()
 	if err != nil {
 		return err
@@ -75,7 +70,7 @@ func broadcastCallback(msg Message, await bool) error {
 
 			ip := localNetwork + strconv.Itoa(x)
 
-			conn, err := newNodeConn(ip, time.Second)
+			conn, err := s.connect(ip, time.Second)
 			if err != nil {
 				// log.Printf("Unable to create connection while broadcasting to %s: %s\n", ip, err.Error())
 				return

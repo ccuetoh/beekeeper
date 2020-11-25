@@ -33,56 +33,85 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // DistributeJob builds a job and sends a copy to the workers. Will fail if an empty workers list is given.
-func (w Workers) DistributeJob(pkgName string, function string) error {
-	if len(w) < 1 {
+func (s *Server) DistributeJob(n Nodes, pkgName string, function string) error {
+	if len(n) < 1 {
 		return errors.New("no workers provided")
 	}
 
-	if !mySettings.Config.DisableConnectionWatchdog {
-		terminateChan := make(chan bool)
-		go startConnectionWatchdog(terminateChan)
+	opSystems := n.getOperatingSystems()
+
+	paths, err := buildJob(pkgName, function, opSystems)
+	if err != nil {
+		return err
+	}
+
+	if !s.Config.DisableConnectionWatchdog {
+		terminateChan := make(chan bool, 1)
+		go startConnectionWatchdog(s, terminateChan)
 		defer func() {
 			terminateChan <- true
 		}()
 	}
 
-	opSys := w.getOperatingSystems()
+	binaries := make(map[string][]byte, len(opSystems))
+	for _, opSys := range opSystems {
+		data, err := readBinary(paths[opSys])
+		if err != nil {
+			return fmt.Errorf("unable to load binary for os %s: %s", opSys, err.Error())
+		}
 
-	paths, err := buildJob(pkgName, function, opSys)
-	if err != nil {
-		return err
+		binaries[opSys] = data
 	}
 
-	for _, worker := range w {
-		data, err := readBinary(paths[worker.Info.OS])
-		if err != nil {
-			return fmt.Errorf("unable to load binary for os %s: %s", worker.Info.OS, err.Error())
-		}
+	var binariesLock sync.RWMutex
 
-		msg := Message{
-			Operation: OperationJobTransfer,
-			Data:      data,
-		}
+	errChan := make(chan error, len(n))
+	okChan := make(chan bool, len(n))
 
-		err = worker.send(msg)
-		if err != nil {
-			return fmt.Errorf("unable to send job to worker %s: %s", worker.Name, err.Error())
-		}
+	for _, node := range n {
+		go func(node Node) {
+			binariesLock.RLock()
+			data := binaries[node.Info.OS]
+			binariesLock.RUnlock()
 
-		err = awaitTransferAndCheck(worker, 2)
-		if err != nil {
-			if err == ErrNodeDisconnected {
-				return fmt.Errorf("unable to send job to worker %s: node disconnected", worker.Name)
+			msg := Message{
+				Operation: OperationJobTransfer,
+				Data:      data,
 			}
 
-			return fmt.Errorf("unable to send job to worker %s: %s", worker.Name, err)
+			err = node.send(msg)
+			if err != nil {
+				errChan <- fmt.Errorf("unable to send job to node %s: %s", node.Name, err.Error())
+			}
+
+			err = s.awaitTransfer(node)
+			if err != nil {
+				if err == ErrNodeDisconnected {
+					errChan <- fmt.Errorf("unable to send job to node %s: node disconnected", node.Name)
+				}
+
+				errChan <- fmt.Errorf("unable to send job to node %s: %s", node.Name, err)
+			}
+
+			okChan <- true
+		}(node)
+	}
+
+	okays := 0
+	for okays < len(n) {
+		select {
+		case <- okChan:
+			okays += 1
+		case err := <- errChan:
+			return err
 		}
 	}
 
-	if !mySettings.Config.DisableCleanup {
+	if !s.Config.DisableCleanup {
 		err = cleanupBuild()
 		if err != nil {
 			log.Println("Unable to perform cleanup:", err.Error())
@@ -94,15 +123,13 @@ func (w Workers) DistributeJob(pkgName string, function string) error {
 
 // cleanupBuild removes build files and binaries.
 func cleanupBuild() error {
-	sep := string(filepath.Separator)
-
-	folderPath := "." + sep + ".beekeeper"
+	folderPath := filepath.FromSlash("./.beekeeper")
 	if !doesPathExists(folderPath) {
 		return nil // Nothing to do here
 	}
 
 	// Remove temp.go
-	tempGoFile := folderPath + sep + "temp.go"
+	tempGoFile := filepath.FromSlash(folderPath + "/temp.go")
 	if doesPathExists(tempGoFile) {
 		err := os.Remove(tempGoFile)
 		if err != nil {
@@ -122,7 +149,7 @@ func cleanupBuild() error {
 		}
 
 		if strings.HasPrefix(file.Name(), "temp_") {
-			err := os.Remove(folderPath + sep + file.Name())
+			err := os.Remove(filepath.FromSlash(folderPath + "/" + file.Name()))
 			if err != nil {
 				return err
 			}

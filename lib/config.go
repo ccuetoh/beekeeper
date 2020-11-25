@@ -39,13 +39,20 @@ const (
 // WatchdogSleep is the time between node pings for the watchdog
 var WatchdogSleep = time.Second * 15
 
-// Config holds the configurations for a worker or a primary node.
+// Config holds the configurations for a node or a primary node.
 type Config struct {
+	// Basic
 	Name                      string `mapstructure:"name,omitempty"`
 	Debug                     bool   `mapstructure:"debug,omitempty"`
 	Token                     string `mapstructure:"token,omitempty"`
 	InboundPort               int    `mapstructure:"inbound_port,omitempty"`
 	OutboundPort              int    `mapstructure:"outbound_port,omitempty"`
+
+	// TLS
+	TLSCertificate            []byte `mapstructure:"tls_certificate,omitempty"`
+	TLSPrivateKey             []byte `mapstructure:"tls_private_key,omitempty"`
+
+	// Disables
 	DisableCleanup            bool   `mapstructure:"disable_cleanup,omitempty"`
 	DisableConnectionWatchdog bool   `mapstructure:"disable_connection_watchdog,omitempty"`
 }
@@ -62,7 +69,7 @@ func NewDefaultConfig() (c Config) {
 
 	c.InboundPort = DefaultPort
 	c.OutboundPort = DefaultPort
-	c.DisableCleanup = true
+	c.DisableCleanup = false
 
 	return c
 }

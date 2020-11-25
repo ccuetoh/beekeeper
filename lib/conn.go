@@ -23,6 +23,7 @@
 package beekeeper
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
@@ -33,47 +34,56 @@ import (
 	"time"
 )
 
-// nodeConn is an alias for net.TCPConn.
-type nodeConn net.TCPConn
+// Conn implements net.TCPConn.
+type Conn struct {
+	*tls.Conn
+	server *Server
+}
 
-// sendFunction is used to manage message sending. It gets replaced in testing.
-var sendFunction = defaultSendFunction
+// connect establishes a new connection to the node using TCP.
+func (s *Server) connect(ip string, timeout ...time.Duration) (*Conn, error) {
+	return s.connCallback(s, ip, timeout...)
+}
 
-// connectFunction is used to manage new connections. It gets replaced in testing.
-var connectFunction = defaultNodeConnFunction
-
-// defaultNodeConnFunction creates a connection with the ip. It exists to allow for testing without actually
+// defaultConnCallback creates a connection with the ip. It exists to allow for testing without actually
 // creating connections.
-func defaultNodeConnFunction(ip string, timeout ...time.Duration) (*nodeConn, error) {
-	var d net.Dialer
-	if len(timeout) > 0 {
-		d = net.Dialer{Timeout: timeout[0]}
-	} else {
-		d = net.Dialer{}
+func defaultConnCallback(s *Server, ip string, timeout ...time.Duration) (*Conn, error) {
+	start := time.Now()
+
+	cert, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
+	if err != nil {
+		log.Fatal("Failed to parse TLS certificate")
 	}
 
-	conn, err := d.Dial("tcp", setOutPortIfMissing(ip))
+	fmt.Printf("Parse cert: %s\n", time.Since(start))
+
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+	var d tls.Dialer
+	if len(timeout) > 0 {
+		d = tls.Dialer{NetDialer: &net.Dialer{Timeout: timeout[0]}, Config: tlsConfig}
+	} else {
+		d = tls.Dialer{Config: tlsConfig}
+	}
+
+	conn, err := d.Dial("tcp", setOutPortIfMissing(ip, s.Config.OutboundPort))
 	if err != nil {
 		return nil, err
 	}
 
-	return (*nodeConn)(conn.(*net.TCPConn)), nil
+	tlsConn := Conn{conn.(*tls.Conn), s}
+	return &tlsConn, nil
 }
 
-// newNodeConn establishes a new connection to the node using TCP.
-func newNodeConn(ip string, timeout ...time.Duration) (*nodeConn, error) {
-	return connectFunction(ip, timeout...)
-}
-
-// defaultSendFunction is used to send messages. It exists to allow for testing without actually sending messages.
-func defaultSendFunction(c *nodeConn, m Message) error {
+// defaultSendCallback is used to send messages. It exists to allow for testing without actually sending messages.
+func defaultSendCallback(c *Conn, m Message) error {
 	m.SentAt = time.Now()
-	m.From = mySettings.Name
-	m.Status = mySettings.Status
-	m.Token = mySettings.Config.Token
+	m.From = c.server.Config.Name
+	m.Status = c.server.Status
+	m.Token = c.server.Config.Token
 
 	if m.RespondOnPort == 0 {
-		m.RespondOnPort = mySettings.Config.InboundPort
+		m.RespondOnPort = c.server.Config.InboundPort
 	}
 
 	m.NodeInfo.OS = runtime.GOOS
@@ -86,17 +96,12 @@ func defaultSendFunction(c *nodeConn, m Message) error {
 	header := []byte(fmt.Sprintf("%d\n", len(data)))
 	data = append(header, data...)
 
-	err = c.SetWriteBuffer(len(data))
-	if err != nil {
-		return err
-	}
-
 	_, err = c.Write(data)
 	if err != nil {
 		return err
 	}
 
-	if mySettings.Config.Debug {
+	if c.server.Config.Debug {
 		log.Println("Sent:", m.summary())
 	}
 
@@ -104,8 +109,8 @@ func defaultSendFunction(c *nodeConn, m Message) error {
 }
 
 // send fills the Message with the required metadata and sends it.
-func (c *nodeConn) send(m Message) error {
-	return sendFunction(c, m)
+func (c *Conn) send(m Message) error {
+	return c.server.sendCallback(c, m)
 }
 
 // getHostname uses the local network name to fetch the host system's name.
@@ -119,13 +124,11 @@ func getHostname() (name string, err error) {
 }
 
 // setOutPortIfMissing adds the configured port (or default if none) to the given IP has no ports set.
-func setOutPortIfMissing(ip string) string {
+func setOutPortIfMissing(ip string, port int) string {
 	if strings.Contains(ip, ":") {
 		// Port already set
 		return ip
 	}
-
-	port := mySettings.Config.OutboundPort
 	if port == 0 {
 		port = DefaultPort
 	}

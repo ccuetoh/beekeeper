@@ -24,23 +24,16 @@ package beekeeper
 
 import (
 	"errors"
-	"net"
-	"sync"
+	"log"
 	"time"
 )
 
-// awaitedTasks holds a list of the task waiting for results and the corresponding notification channels.
-var awaitedTasks = make(map[string]chan Result)
+type awaitables []awaitable
 
-// awaitedTasksLock blocks the awaitedTasks for asynchronous use.
-var awaitedTasksLock sync.Mutex
-
-// awaitedTransfers holds a list of the IPs whose transfers are waiting for confirmations and the corresponding
-// notification channel.
-var awaitedTransfers = make(map[*net.TCPAddr]chan string)
-
-// awaitedTransfersLock blocks the awaitedTransfers for asynchronous use
-var awaitedTransfersLock sync.Mutex
+type awaitable struct {
+	notify     chan Message
+	checkFunc  func(Message) bool
+}
 
 // ErrTimeout is produced by functions called with a timeout when the allocated time is exceeded
 var ErrTimeout = errors.New("time exceeded")
@@ -48,110 +41,111 @@ var ErrTimeout = errors.New("time exceeded")
 // ErrNodeDisconnected is produced when a node is gets disconnected while executing an operation
 var ErrNodeDisconnected = errors.New("node disconnected")
 
-// awaitTaskWithTimeout blocks the execution until a node sends a Result with a matching taskID or the assigned time
-// window is expired.
-func awaitTaskWithTimeout(taskID string, timeout time.Duration) (Result, error) {
-	resChan := make(chan Result)
+// awaitTask blocks the execution until a node sends a Result with a matching taskID.
+func (s *Server) awaitTask(taskId string, timeout ...time.Duration) (Result, error) {
 
-	awaitedTasksLock.Lock()
-	awaitedTasks[taskID] = resChan
-	awaitedTasksLock.Unlock()
+	notifyChan := make(chan Message, 1)
 
-	select {
-	case res := <-resChan:
-		return res, nil
-	case <-time.After(timeout):
-		return Result{}, ErrTimeout
+	s.awaitedLock.Lock()
+	s.awaited = append(s.awaited, awaitable{
+		notify:    notifyChan,
+		checkFunc: func(msg Message) bool {
+			if msg.Operation == OperationJobResult {
+				res, err := decodeResult(msg.Data)
+				if err != nil {
+					log.Println("Error: Unable to decode task response")
+					return false
+				}
+
+				if res.UUID == taskId {
+					return true
+				}
+			}
+
+			return false
+		},
+	})
+	s.awaitedLock.Unlock()
+
+	if len(timeout) > 0 {
+		select {
+		case msg := <-notifyChan:
+			res, _ := decodeResult(msg.Data)
+			return res, nil
+		case <-time.After(timeout[0]):
+			return Result{}, ErrTimeout
+		}
 	}
+
+	msg := <-notifyChan
+	res, _ := decodeResult(msg.Data)
+	return res, nil
 }
 
-// awaitTask blocks the execution until a node sends a Result with a matching taskID.
-func awaitTask(taskId string) Result {
-	resChan := make(chan Result)
+// awaitTransfer blocks the execution until the node sends a transfer acknowledgement or reports a transfer error.
+// If an error message is received i'll be returned. An empty string means no error was raised.
+func (s *Server) awaitTransfer(n Node, timeout ...time.Duration) error  {
+	notifyChan := make(chan Message, 1)
+	disconnectChan := newDisconnectionWatchdog(s, n, 2)
 
-	awaitedTasksLock.Lock()
-	awaitedTasks[taskId] = resChan
-	awaitedTasksLock.Unlock()
+	s.awaitedLock.Lock()
+	s.awaited = append(s.awaited, awaitable{
+		notify:    notifyChan,
+		checkFunc: func(msg Message) bool {
+			if msg.Operation == OperationTransferFailed || msg.Operation == OperationTransferAcknowledge &&
+				msg.Addr.IP.Equal(n.Addr.IP){
+				return true
+			}
 
-	return <-resChan
+			return false
+		},
+	})
+	s.awaitedLock.Unlock()
+
+	if len(timeout) > 0 {
+		select {
+		case msg := <-notifyChan:
+			if msg.Operation == OperationTransferAcknowledge {
+				return nil
+			}
+
+			return errors.New(string(msg.Data))
+		case <-time.After(timeout[0]):
+			return ErrTimeout
+		case <-disconnectChan:
+			return ErrNodeDisconnected
+		}
+	}
+
+	select {
+	case msg := <-notifyChan:
+		if msg.Operation == OperationTransferAcknowledge {
+			return nil
+		}
+
+		return errors.New(string(msg.Data))
+
+	case <-disconnectChan:
+		return ErrNodeDisconnected
+	}
+
 }
 
 // processAwaitedTask compares a Result object with the awaited tasks. If a match is found the Result is passed forward
 // to the assigned chan and the task is deleted from the awaited tasks list.
-func processAwaitedTask(res Result) bool {
-	awaitedTasksLock.Lock()
-	defer awaitedTasksLock.Unlock()
+func (s *Server) checkAwaited(msg Message) {
+	s.awaitedLock.Lock()
+	defer s.awaitedLock.Unlock()
 
-	for taskID, c := range awaitedTasks {
-		if taskID == res.UUID {
-			c <- res
-			delete(awaitedTasks, taskID)
+	var remaining awaitables
 
-			return true
+	for _, a := range s.awaited {
+		if a.checkFunc(msg) {
+			a.notify <- msg
+		} else {
+			remaining = append(remaining, a)
 		}
 	}
 
-	return false
-}
-
-// awaitTransfer blocks the execution until the worker sends a transfer acknowledgement or reports a transfer error.
-// If an error message is received i'll be returned. An empty string means no error was raised.
-func awaitTransfer(w Worker) error {
-	errChan := make(chan string)
-
-	awaitedTransfersLock.Lock()
-	awaitedTransfers[w.Addr] = errChan
-	awaitedTransfersLock.Unlock()
-
-	res := <-errChan
-	if res == "" {
-		return nil
-	}
-
-	return errors.New(res)
-}
-
-// awaitTransferAndCheck blocks the execution until the worker sends a transfer acknowledgement or reports a transfer
-// error. If an error message is received i'll be returned. It will create a thread to check if the worker is still
-// responding to Status operations, and if no response is received more than maxDisconnect times, the transfer will be
-// considered failed.
-func awaitTransferAndCheck(w Worker, maxDisconnect int) error {
-	successChan := make(chan error)
-
-	// Result routine
-	go func() {
-		successChan <- awaitTransfer(w)
-	}()
-
-	disconnectChan := newDisconnectionWatchdog(w, maxDisconnect)
-
-	select {
-	case <-disconnectChan:
-		return ErrNodeDisconnected
-	case errMsg := <-successChan:
-		return errMsg
-	}
-}
-
-// processAwaitedTask compares a Message object with the awaited transfers. If a match is found the transfer Result
-// is passed forward to the assigned chan and the transfer is deleted from the awaited transfer list.
-func processAwaitedTransfer(msg Message) bool {
-	awaitedTransfersLock.Lock()
-	defer awaitedTransfersLock.Unlock()
-
-	for ip, c := range awaitedTransfers {
-		if msg.Addr.IP.Equal(ip.IP) {
-			data := string(msg.Data)
-			if data == "" && msg.Operation == OperationTransferFailed {
-				data = "no further explanation received"
-			}
-
-			c <- data
-			delete(awaitedTransfers, ip)
-
-			return true
-		}
-	}
-
-	return false
+	s.awaited = remaining
 }
