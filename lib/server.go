@@ -26,7 +26,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"log"
-	"net"
 	"strconv"
 	"sync"
 	"time"
@@ -48,10 +47,13 @@ type Server struct {
 	nodes     Nodes
 	nodesLock sync.RWMutex
 
+	// Connection
+	queue chan Request
+
 	// Callbacks
 	sendCallback   func(*Conn, Message) error
 	connCallback   func(*Server, string, ...time.Duration) (*Conn, error)
-	serverCallback func(Config, func(chan Message, net.Conn)) (chan Message, error)
+	serverCallback func(*Server) error
 
 	// Awaited
 	awaited     awaitables
@@ -91,6 +93,7 @@ func NewServer(configs ...Config) *Server {
 		connCallback:    defaultConnCallback,
 		sendCallback:    defaultSendCallback,
 		serverCallback:  defaultServeCallback,
+		queue:           make(chan Request),
 	}
 }
 
@@ -98,7 +101,7 @@ func NewServer(configs ...Config) *Server {
 func (s *Server) Start() error {
 	log.Println("Starting server")
 
-	msgChan, err := s.serverCallback(s.Config, defaultHandler)
+	err := s.serverCallback(s)
 	if err != nil {
 		return err
 	}
@@ -109,28 +112,28 @@ func (s *Server) Start() error {
 		select {
 		case <-s.terminationChan:
 			return ErrTerminated
-		case msg := <-msgChan:
-			authed := msg.isTokenMatching(s.Config.Token)
+		case req := <-s.queue:
+			authed := req.Msg.isTokenMatching(s.Config.Token)
 			if !authed {
 				continue
 			}
 
 			if s.Config.Debug {
-				log.Println("Received:", msg.summary())
+				log.Println("Received:", req.Msg.summary())
 			}
 
-			s.updateNode(msg.node())
-			go s.handleMessage(msg)
+			s.updateNode(req.Msg.node())
+			go s.handleMessage(req.Conn, req.Msg)
 		}
 	}
 }
 
 // Stop shutdowns a running server
 func (s *Server) Stop() {
-	s.terminationChan <- true
+	close(s.terminationChan)
 }
 
-// Scan broadcasts a status request to all IPs and waits the provided amount for a response.
+// Scan broadcasts a status Request to all IPs and waits the provided amount for a response.
 func (s *Server) Scan(waitTime time.Duration) (Nodes, error) {
 	err := s.broadcastOperation(OperationStatus, false)
 	if err != nil {
@@ -146,28 +149,33 @@ func (s *Server) Scan(waitTime time.Duration) (Nodes, error) {
 }
 
 // handleMessage takes a Message from the node's server and runs the corresponding operation callback.
-func (s *Server) handleMessage(msg Message) {
+func (s *Server) handleMessage(conn Conn, msg Message) {
+	conn.server = s
+
 	switch msg.Operation {
 	case OperationJobResult:
-		jobResultCallback(s, msg) // Primary
+		jobResultCallback(s, conn, msg) // Primary
 
 	case OperationTransferAcknowledge:
-		transferStatusCallback(s, msg) // Primary
+		transferStatusCallback(s, conn, msg) // Primary
 
 	case OperationTransferFailed:
-		transferStatusCallback(s, msg) // Primary
+		transferStatusCallback(s, conn, msg) // Primary
 
 	case OperationStatus:
-		statusCallback(s, msg) // Node
+		statusCallback(s, conn, msg) // Node
 
 	case OperationJobTransfer:
-		jobTransferCallback(s, msg) // Node
+		jobTransferCallback(s, conn, msg) // Node
 
 	case OperationJobExecute:
-		jobExecuteCallback(s, msg) // Node
+		jobExecuteCallback(s, conn, msg) // Node
 	}
 
-	s.updateNode(msg.node())
+	node := msg.node()
+	node.Conn = &conn
+
+	s.updateNode(node)
 }
 
 // isOnline searches the node in the server's node slice
@@ -185,24 +193,20 @@ func (s *Server) isOnline(n Node) bool {
 }
 
 // defaultServeCallback listens for TCP connections and sends the processed output of handler to the c chan.
-func defaultServeCallback(config Config, handler func(chan Message, net.Conn)) (chan Message, error) {
-	c := make(chan Message)
-
-	cer, err := tls.X509KeyPair(config.TLSCertificate, config.TLSPrivateKey)
+func defaultServeCallback(s *Server) error {
+	cer, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}, InsecureSkipVerify: true}
 
-	l, err := tls.Listen("tcp", ":"+strconv.Itoa(config.InboundPort), tlsConfig)
+	l, err := tls.Listen("tcp", ":"+strconv.Itoa(s.Config.InboundPort), tlsConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	go func() {
-		defer l.Close()
-
 		for {
 			conn, err := l.Accept()
 			if err != nil {
@@ -211,10 +215,10 @@ func defaultServeCallback(config Config, handler func(chan Message, net.Conn)) (
 			}
 
 			go func() {
-				handler(c, conn)
+				s.handle(conn)
 			}()
 		}
 	}()
 
-	return c, nil
+	return nil
 }

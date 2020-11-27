@@ -64,7 +64,7 @@ func TestWorkers_Execute(t *testing.T) {
 					return
 				}
 
-				receiveChan <- response
+				receiveChan <- Request{response, Conn{}}
 
 				if received == len(nodes) {
 					return

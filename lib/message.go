@@ -151,8 +151,6 @@ func (m Message) respond(s *Server, response Message) error {
 		return err
 	}
 
-	defer conn.Close()
-
 	err = conn.send(response)
 	if err != nil {
 		return err

@@ -102,7 +102,7 @@ func (m *Monitor) Run(configs ...Config) {
 				RespondOnPort: config.InboundPort}, true)
 
 			if err != nil {
-				log.Println("Unable to broadcast status request:", err.Error())
+				log.Println("Unable to broadcast status Request:", err.Error())
 
 				time.Sleep(sleepTime)
 				continue

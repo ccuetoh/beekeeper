@@ -53,7 +53,7 @@ func TestAwaitTaskWithTimeoutReceived(t *testing.T) {
 		t.Fail()
 	}
 
-	receiveChan <- msg
+	receiveChan <- Request{msg, Conn{}}
 
 	wg.Wait()
 }
@@ -119,7 +119,7 @@ func TestAwaitTask(t *testing.T) {
 		return
 	}
 
-	receiveChan <- msg
+	receiveChan <- Request{msg, Conn{}}
 
 	wg.Wait()
 }
@@ -148,7 +148,7 @@ func TestAwaitTransferAndCheckAcknowledge(t *testing.T) {
 	msg.Operation = OperationTransferAcknowledge
 	msg.Addr = addr
 
-	receiveChan <- msg
+	receiveChan <- Request{msg, Conn{}}
 
 	wg.Wait()
 }
@@ -177,7 +177,7 @@ func TestAwaitTransferAndCheckFailed(t *testing.T) {
 	msg.Operation = OperationTransferFailed
 	msg.Addr = addr
 
-	receiveChan <- msg
+	receiveChan <- Request{msg, Conn{}}
 
 	wg.Wait()
 }

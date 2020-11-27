@@ -24,62 +24,72 @@ package beekeeper
 
 import (
 	"bufio"
+	"crypto/tls"
 	"io"
 	"log"
 	"net"
 	"strconv"
 )
 
-// defaultHandler will process a TCPConnection and return a Message object with its data if possible. Connections
+// Request represents an incoming Message with its connection
+type Request struct {
+	Msg  Message
+	Conn Conn
+}
+
+// handle will process a TCPConnection and return a Message object with its data if possible. Connections
 // coming from the host machine are discarded.
-func defaultHandler(c chan Message, conn net.Conn) {
-	isPipe := conn.RemoteAddr().String() == "pipe"
-
-	if conn.RemoteAddr() == conn.LocalAddr() && !isPipe {
-		return
-	}
-
+func (s *Server) handle(conn net.Conn) {
 	reader := bufio.NewReader(conn)
-	header, _, err := reader.ReadLine()
-	if err != nil {
-		log.Println("Error reading connection header:", err.Error())
-		_ = conn.Close()
-		return
+
+	for {
+		select {
+		case <-s.terminationChan: // In case that Stop is called
+			_ = conn.Close()
+			return
+		default:
+			header, _, err := reader.ReadLine()
+			if err != nil {
+				_ = conn.Close()
+				return
+			}
+
+			dataLen, err := strconv.Atoi(string(header))
+			if err != nil {
+				log.Println("Error parsing connection header:", err.Error())
+				_ = conn.Close()
+				return
+			}
+
+			dataBuf := make([]byte, dataLen)
+
+			readLen, err := io.ReadFull(reader, dataBuf)
+			if err != nil {
+				_ = conn.Close()
+				return
+			}
+
+			if readLen != dataLen {
+				log.Printf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
+				_ = conn.Close()
+				return
+			}
+
+			msg, err := decodeMessage(dataBuf)
+			if err != nil {
+				log.Println("Error reading data:", err.Error())
+				_ = conn.Close()
+				return
+			}
+
+			tcpAddr := conn.RemoteAddr().(*net.TCPAddr)
+			msg.Addr = tcpAddr
+
+			s.queue <- Request{
+				Msg:  msg,
+				Conn: Conn{conn.(*tls.Conn), nil},
+			}
+		}
+
 	}
-
-	dataLen, err := strconv.Atoi(string(header))
-	if err != nil {
-		log.Println("Error parsing connection header:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	dataBuf := make([]byte, dataLen)
-
-	readLen, err := io.ReadFull(reader, dataBuf)
-	if err != nil {
-		log.Println("Error reading connection:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if readLen != dataLen {
-		log.Printf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
-		_ = conn.Close()
-		return
-	}
-
-	msg, err := decodeMessage(dataBuf)
-	if err != nil {
-		log.Println("Error reading data:", err.Error())
-		_ = conn.Close()
-		return
-	}
-
-	if !isPipe {
-		tcpAddr := conn.RemoteAddr().(*net.TCPAddr)
-		msg.Addr = tcpAddr
-	}
-
-	c <- msg
 }

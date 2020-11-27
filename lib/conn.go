@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-// Conn implements net.TCPConn.
+// Conn implements *tls.Conn
 type Conn struct {
 	*tls.Conn
 	server *Server
@@ -48,14 +48,10 @@ func (s *Server) connect(ip string, timeout ...time.Duration) (*Conn, error) {
 // defaultConnCallback creates a connection with the ip. It exists to allow for testing without actually
 // creating connections.
 func defaultConnCallback(s *Server, ip string, timeout ...time.Duration) (*Conn, error) {
-	start := time.Now()
-
 	cert, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
 	if err != nil {
 		log.Fatal("Failed to parse TLS certificate")
 	}
-
-	fmt.Printf("Parse cert: %s\n", time.Since(start))
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
 
@@ -66,13 +62,15 @@ func defaultConnCallback(s *Server, ip string, timeout ...time.Duration) (*Conn,
 		d = tls.Dialer{Config: tlsConfig}
 	}
 
-	conn, err := d.Dial("tcp", setOutPortIfMissing(ip, s.Config.OutboundPort))
+	tlsConn, err := d.Dial("tcp", setOutPortIfMissing(ip, s.Config.OutboundPort))
 	if err != nil {
 		return nil, err
 	}
 
-	tlsConn := Conn{conn.(*tls.Conn), s}
-	return &tlsConn, nil
+	go s.handle(tlsConn) // Be prepared to receive on this conn
+
+	conn := Conn{tlsConn.(*tls.Conn), s}
+	return &conn, nil
 }
 
 // send fills the Message with the required metadata and sends it.
@@ -144,7 +142,7 @@ func getLocalIP() (ip net.IP, err error) {
 	}
 
 	ip = conn.LocalAddr().(*net.UDPAddr).IP
-	err = conn.Close()
+	_ = conn.Close()
 
 	return
 }

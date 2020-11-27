@@ -29,13 +29,12 @@ import (
 
 var testWasStarted = false
 
-var receiveChan = make(chan Message)
 var sendChan = make(chan Message, 500)
 var server *Server
 
-func startPrimaryTestChannels() (*Server, chan Message, chan Message) {
+func startPrimaryTestChannels() (*Server, chan Request, chan Message) {
 	if testWasStarted {
-		return server, receiveChan, sendChan
+		return server, server.queue, sendChan
 	}
 
 	testWasStarted = true
@@ -45,8 +44,8 @@ func startPrimaryTestChannels() (*Server, chan Message, chan Message) {
 	WatchdogSleep = time.Millisecond * 100
 	server = NewServer(config)
 
-	server.serverCallback = func(config Config, handler func(chan Message, net.Conn)) (chan Message, error) {
-		return receiveChan, nil
+	server.serverCallback = func(*Server) error {
+		return nil
 	}
 
 	server.sendCallback = func(c *Conn, m Message) error {
@@ -65,7 +64,7 @@ func startPrimaryTestChannels() (*Server, chan Message, chan Message) {
 		}
 	}()
 
-	return server, receiveChan, sendChan
+	return server, server.queue, sendChan
 }
 
 func getTestNodes(s *Server) Nodes {

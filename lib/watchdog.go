@@ -27,7 +27,7 @@ import (
 	"time"
 )
 
-// startConnectionWatchdog will periodically clear the online workers list and broadcastOperation a new status request to
+// startConnectionWatchdog will periodically clear the online workers list and broadcastOperation a new status Request to
 // refill it.
 func startConnectionWatchdog(s *Server, terminate chan bool) {
 	for {

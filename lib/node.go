@@ -37,6 +37,7 @@ import (
 
 // Node represents a node node.
 type Node struct {
+	Conn   *Conn
 	Addr   *net.TCPAddr
 	Name   string
 	Status Status
@@ -44,12 +45,16 @@ type Node struct {
 	server *Server
 }
 
+
+// Nodes is a Node slice
+type Nodes []Node
+
 // Equals compares two workers. The comparison is made using the IP addresses of the nodes.
 func (n Node) Equals(w2 Node) bool {
 	return n.Addr.IP.Equal(w2.Addr.IP)
 }
 
-// send creates a new Conn and sends the provided Message.
+// send sends the provided Message.
 func (n Node) send(m Message) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -57,23 +62,21 @@ func (n Node) send(m Message) error {
 		}
 	}()
 
-	conn, err := n.server.connect(n.Addr.IP.String())
+	if n.Conn == nil {
+		var err error
+		n.Conn, err = n.server.connect(n.Addr.IP.String())
+		if err != nil {
+			return err
+		}
+	}
+
+	err := n.Conn.send(m)
 	if err != nil {
 		return err
 	}
-
-	err = conn.send(m)
-	if err != nil {
-		return err
-	}
-
-	defer conn.Close()
 
 	return nil
 }
-
-// Nodes is a Node slice
-type Nodes []Node
 
 // getOperatingSystems iterates the workers and returns a set of the GOOSs found.
 func (n Nodes) getOperatingSystems() (opSys []string) {
