@@ -104,10 +104,7 @@ func (m Message) encode() ([]byte, error) {
 		return nil, err
 	}
 
-	err = gzipWriter.Close()
-	if err != nil {
-		return nil, err
-	}
+	_ = gzipWriter.Close()
 
 	return buf.Bytes(), nil
 }
