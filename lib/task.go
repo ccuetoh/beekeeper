@@ -49,6 +49,9 @@ func NewTask() Task {
 func (t Task) encode() ([]byte, error) {
 	var buf bytes.Buffer
 
+	// There is some debate on whether creating an encoder everytime is a good idea
+	// but Reddit says it's ok:
+	// https://www.reddit.com/r/golang/comments/7ospor/gob_encoding_how_do_you_use_it_in_production/
 	gobEncoder := gob.NewEncoder(&buf)
 
 	err := gobEncoder.Encode(t)

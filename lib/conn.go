@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-// Conn implements *tls.Conn
+// Conn represents a TLS connection and the corresponding server
 type Conn struct {
 	*tls.Conn
 	server *Server

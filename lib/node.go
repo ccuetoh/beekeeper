@@ -45,7 +45,6 @@ type Node struct {
 	server *Server
 }
 
-
 // Nodes is a Node slice
 type Nodes []Node
 
