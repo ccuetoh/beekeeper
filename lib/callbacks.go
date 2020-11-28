@@ -34,12 +34,14 @@ import (
 
 // jobResultCallback is the callback for the JobResult operation.
 func jobResultCallback(s *Server, conn Conn, msg Message) {
-	s.checkAwaited(msg)
+	// Only updating the node list is needed. Kept for consistency
+	return
 }
 
 // transferStatusCallback is the callback for the JobTransferAcknowledge and JobTransferFailed operations.
 func transferStatusCallback(s *Server, conn Conn, msg Message) {
-	s.checkAwaited(msg)
+	// Only updating the node list is needed. Kept for consistency
+	return
 }
 
 // statusCallback is the callback for the Status operation.

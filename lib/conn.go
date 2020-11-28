@@ -40,8 +40,8 @@ type Conn struct {
 	server *Server
 }
 
-// connect establishes a new connection to the node using TCP.
-func (s *Server) connect(ip string, timeout ...time.Duration) (*Conn, error) {
+// dial establishes a new connection to the node using TLS over TCP.
+func (s *Server) dial(ip string, timeout ...time.Duration) (*Conn, error) {
 	return s.connCallback(s, ip, timeout...)
 }
 

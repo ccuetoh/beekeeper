@@ -63,7 +63,7 @@ func (n Node) send(m Message) error {
 
 	if n.Conn == nil {
 		var err error
-		n.Conn, err = n.server.connect(n.Addr.IP.String())
+		n.Conn, err = n.server.dial(n.Addr.IP.String())
 		if err != nil {
 			return err
 		}
@@ -173,4 +173,15 @@ func (n Nodes) sort() Nodes {
 	})
 
 	return n
+}
+
+// find orders a slice of workers based on their IP address.
+func (n Nodes) find(addr net.IP) Node{
+	for _, node := range n {
+		if node.Addr.IP.Equal(addr) {
+			return node
+		}
+	}
+
+	return Node{}
 }

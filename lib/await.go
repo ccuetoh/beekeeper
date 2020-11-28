@@ -25,6 +25,7 @@ package beekeeper
 import (
 	"errors"
 	"log"
+	"net"
 	"time"
 )
 
@@ -131,8 +132,42 @@ func (s *Server) awaitTransfer(n Node, timeout ...time.Duration) error {
 
 }
 
-// processAwaitedTask compares a Result object with the awaited tasks. If a match is found the Result is passed forward
-// to the assigned chan and the task is deleted from the awaited tasks list.
+// awaitAny blocks the execution until the node with a matching address sends any operation
+func (s *Server) awaitAny(addr string, timeout ...time.Duration) (Node, error) {
+	notifyChan := make(chan Message, 1)
+
+	resolvedAddr, err := net.ResolveIPAddr("ip", addr)
+	if err != nil{
+		return Node{}, err
+	}
+
+	s.awaitedLock.Lock()
+	s.awaited = append(s.awaited, awaitable{
+		notify: notifyChan,
+		checkFunc: func(msg Message) bool {
+			if msg.Addr.IP.Equal(resolvedAddr.IP){
+				return true
+			}
+
+			return false
+		},
+	})
+	s.awaitedLock.Unlock()
+
+	if len(timeout) > 0 {
+		select {
+		case <-notifyChan:
+			return s.nodes.find(resolvedAddr.IP), nil
+		case <-time.After(timeout[0]):
+			return Node{}, ErrTimeout
+		}
+	}
+
+	<-notifyChan
+	return s.nodes.find(resolvedAddr.IP), nil
+}
+
+// checkAwaited compares a Message object with the awaitables list and passes it forward if matching
 func (s *Server) checkAwaited(msg Message) {
 	s.awaitedLock.Lock()
 	defer s.awaitedLock.Unlock()

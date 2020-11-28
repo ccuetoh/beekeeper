@@ -70,7 +70,7 @@ func broadcastCallback(s *Server, msg Message, await bool) error {
 
 			ip := localNetwork + strconv.Itoa(x)
 
-			conn, err := s.connect(ip, time.Second)
+			conn, err := s.dial(ip, time.Second)
 			if err != nil {
 				// log.Printf("Unable to create connection while broadcasting to %s: %s\n", ip, err.Error())
 				return

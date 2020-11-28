@@ -147,7 +147,7 @@ func (m Message) respond(s *Server, response Message) error {
 		addr = m.Addr.IP.String()
 	}
 
-	conn, err := s.connect(addr)
+	conn, err := s.dial(addr)
 	if err != nil {
 		return err
 	}

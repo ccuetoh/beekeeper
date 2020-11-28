@@ -133,6 +133,20 @@ func (s *Server) Stop() {
 	close(s.terminationChan)
 }
 
+func (s *Server) Connect(ip string, timeout ...time.Duration) (Node, error) {
+	conn, err := s.connCallback(s, ip, timeout...)
+	if err != nil {
+		return Node{}, err
+	}
+
+	err = conn.send(Message{Operation: OperationStatus})
+	if err != nil {
+		return Node{}, err
+	}
+
+	return s.awaitAny(ip, timeout...)
+}
+
 // Scan broadcasts a status Request to all IPs and waits the provided amount for a response.
 func (s *Server) Scan(waitTime time.Duration) (Nodes, error) {
 	err := s.broadcastOperation(OperationStatus, false)
@@ -176,6 +190,7 @@ func (s *Server) handleMessage(conn Conn, msg Message) {
 	node.Conn = &conn
 
 	s.updateNode(node)
+	s.checkAwaited(msg)
 }
 
 // isOnline searches the node in the server's node slice
