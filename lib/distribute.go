@@ -37,10 +37,12 @@ import (
 )
 
 // DistributeJob builds a job and sends a copy to the workers. Will fail if an empty workers list is given.
-func (s *Server) DistributeJob(n Nodes, pkgName string, function string) error {
-	if len(n) < 1 {
-		return errors.New("no workers provided")
+func (s *Server) DistributeJob(pkgName string, function string, nodes ...Node) error {
+	if len(nodes) < 1 {
+		return errors.New("no nodes provided")
 	}
+
+	n := Nodes(nodes)
 
 	opSystems := n.getOperatingSystems()
 
