@@ -30,7 +30,7 @@ import (
 func TestWorkers_DistributeJobNoWorkers(t *testing.T) {
 	s, _, _ := startPrimaryTestChannels()
 
-	err := s.DistributeJob(getTestNodes(s), "", "")
+	err := s.DistributeJob("", "", getTestNodes(s)...)
 	if err == nil {
 		t.Fail()
 		return
