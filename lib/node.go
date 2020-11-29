@@ -176,7 +176,7 @@ func (n Nodes) sort() Nodes {
 }
 
 // find orders a slice of workers based on their IP address.
-func (n Nodes) find(addr net.IP) Node{
+func (n Nodes) find(addr net.IP) Node {
 	for _, node := range n {
 		if node.Addr.IP.Equal(addr) {
 			return node

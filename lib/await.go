@@ -69,11 +69,16 @@ func (s *Server) awaitTask(taskId string, timeout ...time.Duration) (Result, err
 	s.awaitedLock.Unlock()
 
 	if len(timeout) > 0 {
+		// Use Timer instead of using time.After. See:
+		// https://medium.com/@oboturov/golang-time-after-is-not-garbage-collected-4cbc94740082
+		toTimer := time.NewTimer(timeout[0])
+		defer toTimer.Stop()
+
 		select {
 		case msg := <-notifyChan:
 			res, _ := decodeResult(msg.Data)
 			return res, nil
-		case <-time.After(timeout[0]):
+		case <-toTimer.C:
 			return Result{}, ErrTimeout
 		}
 	}
@@ -104,6 +109,11 @@ func (s *Server) awaitTransfer(n Node, timeout ...time.Duration) error {
 	s.awaitedLock.Unlock()
 
 	if len(timeout) > 0 {
+		// Use Timer instead of using time.After. See:
+		// https://medium.com/@oboturov/golang-time-after-is-not-garbage-collected-4cbc94740082
+		toTimer := time.NewTimer(timeout[0])
+		defer toTimer.Stop()
+
 		select {
 		case msg := <-notifyChan:
 			if msg.Operation == OperationTransferAcknowledge {
@@ -111,7 +121,7 @@ func (s *Server) awaitTransfer(n Node, timeout ...time.Duration) error {
 			}
 
 			return errors.New(string(msg.Data))
-		case <-time.After(timeout[0]):
+		case <-toTimer.C:
 			return ErrTimeout
 		case <-disconnectChan:
 			return ErrNodeDisconnected
@@ -137,7 +147,7 @@ func (s *Server) awaitAny(addr string, timeout ...time.Duration) (Node, error) {
 	notifyChan := make(chan Message, 1)
 
 	resolvedAddr, err := net.ResolveIPAddr("ip", addr)
-	if err != nil{
+	if err != nil {
 		return Node{}, err
 	}
 
@@ -145,7 +155,7 @@ func (s *Server) awaitAny(addr string, timeout ...time.Duration) (Node, error) {
 	s.awaited = append(s.awaited, awaitable{
 		notify: notifyChan,
 		checkFunc: func(msg Message) bool {
-			if msg.Addr.IP.Equal(resolvedAddr.IP){
+			if msg.Addr.IP.Equal(resolvedAddr.IP) {
 				return true
 			}
 
@@ -155,10 +165,15 @@ func (s *Server) awaitAny(addr string, timeout ...time.Duration) (Node, error) {
 	s.awaitedLock.Unlock()
 
 	if len(timeout) > 0 {
+		// Use Timer instead of using time.After. See:
+		// https://medium.com/@oboturov/golang-time-after-is-not-garbage-collected-4cbc94740082
+		toTimer := time.NewTimer(timeout[0])
+		defer toTimer.Stop()
+
 		select {
 		case <-notifyChan:
 			return s.nodes.find(resolvedAddr.IP), nil
-		case <-time.After(timeout[0]):
+		case <-toTimer.C:
 			return Node{}, ErrTimeout
 		}
 	}
