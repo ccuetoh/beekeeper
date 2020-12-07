@@ -1,6 +1,6 @@
-[![Go Report Card][go-report-shield]][go-report-url]  
-[![MIT License][license-shield]][license-url]  
-[![Build Status][travis-shield]][travis-url]  
+[![Go Report Card][go-report-shield]][go-report-url] 
+[![MIT License][license-shield]][license-url] 
+[![Build Status][travis-shield]][travis-url] 
 [![Documentation][docs-shield]][docs-url]  
   
 <!-- LOGO -->  
@@ -94,7 +94,7 @@ go func() {
 
 defer sv.Stop()
 ```  
-Now we need a list of the available nodes in our network. To do this we use `ScanLocal`.  Optionally we can specify an address to connect to using the `Connect` method. 
+Now we need a list of the available nodes in our network. To do this we use `ScanLocal`. Optionally we can specify an address to connect to using the `Connect` method. 
 ```go  
 nodes, err := beekeeper.Scan(beekeeper.DefaultScanTime) 
 if err != nil{    

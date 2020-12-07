@@ -36,27 +36,37 @@ var ErrTerminated = errors.New("terminated")
 
 // Server is a node server, that holds the configuration to be used.
 type Server struct {
-	// Public
+	// Config hold the configuration data of the server.
 	Config Config
+
+	// Status represents the action the server is currently doing.
 	Status Status
 
-	// Termination
+	// terminationChan is used to stop the server gracefully.
 	terminationChan chan bool
 
-	// Active nodes
+	// nodes keeps a list of active node connections to this server.
 	nodes     Nodes
+
+	// nodesLock is a RWMutex over nodes.
 	nodesLock sync.RWMutex
 
-	// Connection
+	// queue is a chan with the incoming Requests in queue to be processed.
 	queue chan Request
 
-	// Callbacks
+	// sendCallback is the callback used when sending messages to a connection.
 	sendCallback   func(*Server, *Conn, Message) error
+
+	// connCallback is the callback used when creating a new connection with a node.
 	connCallback   func(*Server, string, ...time.Duration) (*Conn, error)
+
+	// serverCallback is the callback used for processing the request queue.
 	serverCallback func(*Server) error
 
-	// Awaited
+	// awaited is a slice with the awaited responses.
 	awaited     awaitables
+
+	// awaitedLock is a Mutex lock over awaited.
 	awaitedLock sync.Mutex
 }
 
@@ -128,11 +138,13 @@ func (s *Server) Start() error {
 	}
 }
 
-// Stop shutdowns a running server
+// Stop shutdowns a running server.
 func (s *Server) Stop() {
 	close(s.terminationChan)
 }
 
+// Connect established a TCP over TLS connection with the given address. If no node is reachable an error will be
+// returned. An optional timeout argument can be provided.
 func (s *Server) Connect(ip string, timeout ...time.Duration) (Node, error) {
 	conn, err := s.connCallback(s, ip, timeout...)
 	if err != nil {
@@ -185,7 +197,7 @@ func (s *Server) handleMessage(conn *Conn, msg Message) {
 	}
 
 	node := msg.node()
-	node.Conn = conn // TODO
+	node.Conn = conn
 
 	s.updateNode(node)
 	s.checkAwaited(msg)
@@ -256,7 +268,7 @@ func (s *Server) send(n Node, m Message) error {
 		}
 	}
 
-	err := s.sendWithConn(n.Conn, m) // TODO
+	err := s.sendWithConn(n.Conn, m)
 	if err != nil {
 		return err
 	}
