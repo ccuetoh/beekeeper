@@ -49,8 +49,8 @@ type Config struct {
 	OutboundPort int    `mapstructure:"outbound_port,omitempty"`
 
 	// TLS
-	TLSCertificate []byte `mapstructure:"tls_certificate,omitempty"`
-	TLSPrivateKey  []byte `mapstructure:"tls_private_key,omitempty"`
+	TLSCertificate []byte
+	TLSPrivateKey  []byte
 
 	// Disables
 	DisableCleanup            bool `mapstructure:"disable_cleanup,omitempty"`
