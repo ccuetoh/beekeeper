@@ -54,21 +54,21 @@ func defaultConnCallback(s *Server, ip string, timeout ...time.Duration) (*Conn,
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
 
-	var d tls.Dialer
+	var d *net.Dialer
 	if len(timeout) > 0 {
-		d = tls.Dialer{NetDialer: &net.Dialer{Timeout: timeout[0]}, Config: tlsConfig}
+		d = &net.Dialer{Timeout: timeout[0]}
 	} else {
-		d = tls.Dialer{Config: tlsConfig}
+		d = &net.Dialer{}
 	}
 
-	tlsConn, err := d.Dial("tcp", setOutPortIfMissing(ip, s.Config.OutboundPort))
+	tlsConn, err := tls.DialWithDialer(d, "tcp", setOutPortIfMissing(ip, s.Config.OutboundPort), tlsConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	go s.handle(tlsConn) // Be prepared to receive on this conn
 
-	conn := Conn{tlsConn.(*tls.Conn)}
+	conn := Conn{tlsConn}
 	return &conn, nil
 }
 
