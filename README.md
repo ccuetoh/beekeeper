@@ -1,5 +1,3 @@
-
-
 [![Go Report Card][go-report-shield]][go-report-url]  
 [![MIT License][license-shield]][license-url]  
 [![Build Status][travis-shield]][travis-url]  
@@ -137,7 +135,7 @@ Contributions are always welcome! If you want to help Beekeeper please create a 
   
 <!-- LICENSE -->  
 ## License  
-Beekeeper is distributed under the MIT License as free and open-source. See the `LICENSE`file for more information.  
+Beekeeper is distributed under the MIT License as free and open-source. See the `LICENSE` file for more information.  
   
 <!-- MARKDOWN LINKS -->  
 [go-report-shield]: https://goreportcard.com/badge/github.com/CamiloHernandez/beekeeper  
