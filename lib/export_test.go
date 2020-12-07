@@ -48,13 +48,13 @@ func startPrimaryTestChannels() (*Server, chan Request, chan Message) {
 		return nil
 	}
 
-	server.sendCallback = func(c *Conn, m Message) error {
+	server.sendCallback = func(_ *Server, c *Conn, m Message) error {
 		sendChan <- m
 		return nil
 	}
 
 	server.connCallback = func(_ *Server, ip string, timeout ...time.Duration) (*Conn, error) {
-		return &Conn{server: server}, nil
+		return &Conn{}, nil
 	}
 
 	go func() {
@@ -67,10 +67,9 @@ func startPrimaryTestChannels() (*Server, chan Request, chan Message) {
 	return server, server.queue, sendChan
 }
 
-func getTestNodes(s *Server) Nodes {
+func getTestNodes() Nodes {
 	return Nodes{
 		{
-			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker1",
 			Status: StatusIDLE,
@@ -81,7 +80,6 @@ func getTestNodes(s *Server) Nodes {
 			},
 		},
 		{
-			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.2"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker2",
 			Status: StatusIDLE,
@@ -92,7 +90,6 @@ func getTestNodes(s *Server) Nodes {
 			},
 		},
 		{
-			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.3"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker3",
 			Status: StatusIDLE,
@@ -103,7 +100,6 @@ func getTestNodes(s *Server) Nodes {
 			},
 		},
 		{
-			server: s,
 			Addr:   &net.TCPAddr{IP: net.ParseIP("192.168.1.4"), Port: 2000, Zone: "tcp"},
 			Name:   "testWorker4",
 			Status: StatusIDLE,
@@ -119,7 +115,7 @@ func getTestNodes(s *Server) Nodes {
 func getTestMessage() Message {
 	return Message{
 		SentAt:        time.Now(),
-		From:          "TEST_HOST",
+		Name:          "TEST_HOST",
 		Operation:     OperationNone,
 		Data:          []byte("TEST_DATA"),
 		Token:         "TEST_TOKEN",

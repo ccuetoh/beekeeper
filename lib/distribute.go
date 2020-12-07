@@ -85,18 +85,18 @@ func (s *Server) DistributeJob(pkgName string, function string, nodes ...Node) e
 				Data:      data,
 			}
 
-			err = node.send(msg)
+			err = s.send(node, msg)
 			if err != nil {
-				errChan <- fmt.Errorf("unable to send job to node %s: %s", node.Name, err.Error())
+				errChan <- fmt.Errorf("unable to sendWithConn job to node %s: %s", node.Name, err.Error())
 			}
 
 			err = s.awaitTransfer(node)
 			if err != nil {
 				if err == ErrNodeDisconnected {
-					errChan <- fmt.Errorf("unable to send job to node %s: node disconnected", node.Name)
+					errChan <- fmt.Errorf("unable to sendWithConn job to node %s: node disconnected", node.Name)
 				}
 
-				errChan <- fmt.Errorf("unable to send job to node %s: %s", node.Name, err)
+				errChan <- fmt.Errorf("unable to sendWithConn job to node %s: %s", node.Name, err)
 			}
 
 			okChan <- true

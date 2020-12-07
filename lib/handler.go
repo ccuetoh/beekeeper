@@ -87,7 +87,7 @@ func (s *Server) handle(conn net.Conn) {
 
 			s.queue <- Request{
 				Msg:  msg,
-				Conn: Conn{conn.(*tls.Conn), nil},
+				Conn: Conn{conn.(*tls.Conn)},
 			}
 		}
 

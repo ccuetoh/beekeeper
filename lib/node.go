@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"github.com/olekukonko/tablewriter"
 	"io"
-	"log"
 	"net"
 	"os"
 	"sort"
@@ -42,7 +41,6 @@ type Node struct {
 	Name   string
 	Status Status
 	Info   NodeInfo
-	server *Server
 }
 
 // Nodes is a Node slice
@@ -51,30 +49,6 @@ type Nodes []Node
 // Equals compares two workers. The comparison is made using the IP addresses of the nodes.
 func (n Node) Equals(w2 Node) bool {
 	return n.Addr.IP.Equal(w2.Addr.IP)
-}
-
-// send sends the provided Message.
-func (n Node) send(m Message) error {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Fatal error while sending to node %s: %s\n", m.From, r)
-		}
-	}()
-
-	if n.Conn == nil {
-		var err error
-		n.Conn, err = n.server.dial(n.Addr.IP.String())
-		if err != nil {
-			return err
-		}
-	}
-
-	err := n.Conn.send(m)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // getOperatingSystems iterates the workers and returns a set of the GOOSs found.
@@ -122,8 +96,6 @@ func (s *Server) updateNode(node2 Node) {
 	s.nodesLock.Lock()
 	defer s.nodesLock.Unlock()
 
-	node2.server = s
-
 	for i, node := range s.nodes {
 		if node.Addr.IP.Equal(node2.Addr.IP) {
 			s.nodes[i] = node2
@@ -134,15 +106,15 @@ func (s *Server) updateNode(node2 Node) {
 	s.nodes = append(s.nodes, node2)
 }
 
-// Execute runs a task on the provided Nodes and blocks until a Result is sent back. Optionally a timeout
+// ExecuteMany runs a task on the provided Nodes and blocks until a Result is sent back. Optionally a timeout
 // argument can be passed.
-func (n Nodes) Execute(t Task, timeout ...time.Duration) ([]Result, error) {
+func (s *Server) ExecuteMany(n Nodes, t Task, timeout ...time.Duration) ([]Result, error) {
 	resultsChan := make(chan Result)
 	errChan := make(chan error)
 
 	for _, node := range n {
 		go func(node Node, rc chan Result, ec chan error) {
-			res, err := node.Execute(t, timeout...)
+			res, err := s.Execute(node, t, timeout...)
 			if err != nil {
 				ec <- fmt.Errorf("node %s error: %s", node.Name, err.Error())
 			} else {

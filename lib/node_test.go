@@ -29,9 +29,7 @@ import (
 )
 
 func TestNodes_getOperatingSystems(t *testing.T) {
-	s, _, _ := startPrimaryTestChannels()
-
-	nodes := getTestNodes(s)
+	nodes := getTestNodes()
 
 	opsys := nodes.getOperatingSystems()
 	expect := []string{"linux", "darwin", "windows"}
@@ -46,6 +44,5 @@ func TestNodes_getOperatingSystems(t *testing.T) {
 }
 
 func TestNodes_PrettyPrint(t *testing.T) {
-	s, _, _ := startPrimaryTestChannels()
-	getTestNodes(s).PrettyPrint() // Panic check
+	getTestNodes().PrettyPrint() // Panic check
 }

@@ -33,19 +33,19 @@ import (
 )
 
 // jobResultCallback is the callback for the JobResult operation.
-func jobResultCallback(s *Server, conn Conn, msg Message) {
+func jobResultCallback(s *Server, conn *Conn, msg Message) {
 	// Only updating the node list is needed. Kept for consistency
 	return
 }
 
 // transferStatusCallback is the callback for the JobTransferAcknowledge and JobTransferFailed operations.
-func transferStatusCallback(s *Server, conn Conn, msg Message) {
+func transferStatusCallback(s *Server, conn *Conn, msg Message) {
 	// Only updating the node list is needed. Kept for consistency
 	return
 }
 
 // statusCallback is the callback for the Status operation.
-func statusCallback(s *Server, conn Conn, msg Message) {
+func statusCallback(s *Server, conn *Conn, msg Message) {
 	ni := NodeInfo{}
 
 	// CPU Usage
@@ -57,7 +57,7 @@ func statusCallback(s *Server, conn Conn, msg Message) {
 	// CPU Temp
 	ni.CPUTemp = getCPUTemp()
 
-	err = conn.send(Message{NodeInfo: ni})
+	err = s.sendWithConn(conn, Message{NodeInfo: ni})
 	if err != nil {
 		log.Println("Error while responding to Status Request:", err.Error())
 		return
@@ -65,21 +65,21 @@ func statusCallback(s *Server, conn Conn, msg Message) {
 }
 
 // jobTransferCallback is the callback for the JobTransfer operation.
-func jobTransferCallback(s *Server, conn Conn, msg Message) {
-	log.Println("Transferring new job from node", msg.From)
+func jobTransferCallback(s *Server, conn *Conn, msg Message) {
+	log.Println("Transferring new job from node", msg.Name)
 
 	folderPath := ".beekeeper"
 	err := createFolderIfNotExist(folderPath)
 	if err != nil {
 		log.Println("Unable to create beekeeper folder:", err.Error())
-		respondTransferError(conn, err.Error())
+		respondTransferError(s, conn, err.Error())
 
 		return
 	}
 
 	if len(msg.Data) == 0 {
 		log.Println("Unable to save job data: empty data field")
-		respondTransferError(conn, "empty data field")
+		respondTransferError(s, conn, "empty data field")
 
 		return
 	}
@@ -88,12 +88,12 @@ func jobTransferCallback(s *Server, conn Conn, msg Message) {
 	err = saveBinary(binPath, msg.Data)
 	if err != nil {
 		log.Println("Unable to save job data:", err.Error())
-		respondTransferError(conn, err.Error())
+		respondTransferError(s, conn, err.Error())
 
 		return
 	}
 
-	err = conn.send(Message{Operation: OperationTransferAcknowledge})
+	err = s.sendWithConn(conn, Message{Operation: OperationTransferAcknowledge})
 	if err != nil {
 		log.Println("Error while acknowledging transfer:", err.Error())
 
@@ -104,14 +104,14 @@ func jobTransferCallback(s *Server, conn Conn, msg Message) {
 }
 
 // jobExecuteCallback is the callback for the JobExecute operation.
-func jobExecuteCallback(s *Server, conn Conn, msg Message) {
+func jobExecuteCallback(s *Server, conn *Conn, msg Message) {
 	task, err := decodeTask(msg.Data)
 	if err != nil {
 		log.Println("Unable to read task data:", err.Error())
 		return
 	}
 
-	log.Println("Executing task", task.UUID, "from node", msg.From)
+	log.Println("Executing task", task.UUID, "from node", msg.Name)
 
 	s.Status = StatusWorking
 
@@ -133,7 +133,7 @@ func jobExecuteCallback(s *Server, conn Conn, msg Message) {
 		return
 	}
 
-	err = conn.send(Message{
+	err = s.sendWithConn(conn, Message{
 		Operation: OperationJobResult,
 		Data:      resBytes,
 	})
@@ -144,8 +144,8 @@ func jobExecuteCallback(s *Server, conn Conn, msg Message) {
 }
 
 // respondTransferError is a shorthand for sending a TransferFailed operation to the remote node.
-func respondTransferError(conn Conn, errMsg string) {
-	err := conn.send(Message{Operation: OperationTransferFailed, Data: []byte(errMsg)})
+func respondTransferError(s *Server, conn *Conn, errMsg string) {
+	err := s.sendWithConn(conn, Message{Operation: OperationTransferFailed, Data: []byte(errMsg)})
 	if err != nil {
 		log.Println("Error while reporting transfer error:", err.Error())
 	}

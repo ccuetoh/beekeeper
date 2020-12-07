@@ -32,6 +32,7 @@ import (
 // LoadBalancer contains the data needed to try to select the best node for a task.
 // Should be created using NewLoadBalancer.
 type LoadBalancer struct {
+	server  *Server
 	best    int64
 	records nodeRecords
 	lock    sync.Mutex
@@ -50,14 +51,14 @@ type record struct {
 }
 
 // NewLoadBalancer creates and sets up a LoadBalancer from the given Nodes.
-func NewLoadBalancer(ns Nodes) *LoadBalancer {
+func NewLoadBalancer(s *Server, ns Nodes) *LoadBalancer {
 	var records []*nodeRecord
 
 	for _, w := range ns {
 		records = append(records, &nodeRecord{node: w, record: record{time: time.Second.Milliseconds()}})
 	}
 
-	return &LoadBalancer{records: records, best: time.Hour.Milliseconds()}
+	return &LoadBalancer{records: records, best: time.Hour.Milliseconds(), server: s}
 }
 
 // Execute will run a task, selecting the node based on it's workload. If multiple nodes are equally as busy, the
@@ -77,7 +78,7 @@ func (lb *LoadBalancer) Execute(t Task, timeout ...time.Duration) (res Result, e
 	lb.lock.Unlock()
 
 	start := time.Now()
-	res, err = use.node.Execute(t, timeout...)
+	res, err = lb.server.Execute(use.node, t, timeout...)
 	if err != nil {
 		return Result{}, err
 	}

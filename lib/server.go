@@ -51,7 +51,7 @@ type Server struct {
 	queue chan Request
 
 	// Callbacks
-	sendCallback   func(*Conn, Message) error
+	sendCallback   func(*Server, *Conn, Message) error
 	connCallback   func(*Server, string, ...time.Duration) (*Conn, error)
 	serverCallback func(*Server) error
 
@@ -123,7 +123,7 @@ func (s *Server) Start() error {
 			}
 
 			s.updateNode(req.Msg.node())
-			go s.handleMessage(req.Conn, req.Msg)
+			go s.handleMessage(&req.Conn, req.Msg)
 		}
 	}
 }
@@ -139,7 +139,7 @@ func (s *Server) Connect(ip string, timeout ...time.Duration) (Node, error) {
 		return Node{}, err
 	}
 
-	err = conn.send(Message{Operation: OperationStatus})
+	err = s.sendWithConn(conn, Message{Operation: OperationStatus})
 	if err != nil {
 		return Node{}, err
 	}
@@ -163,9 +163,7 @@ func (s *Server) Scan(waitTime time.Duration) (Nodes, error) {
 }
 
 // handleMessage takes a Message from the node's server and runs the corresponding operation callback.
-func (s *Server) handleMessage(conn Conn, msg Message) {
-	conn.server = s
-
+func (s *Server) handleMessage(conn *Conn, msg Message) {
 	switch msg.Operation {
 	case OperationJobResult:
 		jobResultCallback(s, conn, msg) // Primary
@@ -187,7 +185,7 @@ func (s *Server) handleMessage(conn Conn, msg Message) {
 	}
 
 	node := msg.node()
-	node.Conn = &conn
+	node.Conn = conn // TODO
 
 	s.updateNode(node)
 	s.checkAwaited(msg)
@@ -236,4 +234,37 @@ func defaultServeCallback(s *Server) error {
 	}()
 
 	return nil
+}
+
+// send sends the provided Message to the Node.
+func (s *Server) send(n Node, m Message) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Fatal error while sending to node %s: %s\n", n.Name, r)
+		}
+	}()
+
+	if n.Conn == nil {
+		if s.Config.Debug {
+			log.Printf("Creating new connection to node %s", n.Name)
+		}
+
+		var err error
+		n.Conn, err = s.dial(n.Addr.IP.String())
+		if err != nil {
+			return err
+		}
+	}
+
+	err := s.sendWithConn(n.Conn, m) // TODO
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// sendWithConn fills the Message with the required metadata and sends it.
+func (s *Server) sendWithConn(c *Conn, m Message) error {
+	return s.sendCallback(s, c, m)
 }

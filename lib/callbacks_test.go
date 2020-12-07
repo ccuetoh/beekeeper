@@ -33,7 +33,7 @@ func TestStatusCallback(t *testing.T) {
 	msg := getTestMessage()
 	msg.Operation = OperationStatus
 
-	go sv.handleMessage(Conn{Conn: nil, server: sv}, msg)
+	go sv.handleMessage(&Conn{Conn: nil}, msg)
 
 	select {
 	case response := <-sendChan:
@@ -56,7 +56,7 @@ func TestJobTransferCallback_Acknowledge(t *testing.T) {
 	msg.Data = []byte("test")
 	msg.Operation = OperationJobTransfer
 
-	go sv.handleMessage(Conn{Conn: nil, server: sv}, msg)
+	go sv.handleMessage(&Conn{Conn: nil}, msg)
 
 	select {
 	case response := <-sendChan:
@@ -79,7 +79,7 @@ func TestJobTransferCallback_Failed(t *testing.T) {
 	msg.Operation = OperationJobTransfer
 	msg.Data = []byte{}
 
-	go sv.handleMessage(Conn{Conn: nil, server: sv}, msg)
+	go sv.handleMessage(&Conn{Conn: nil}, msg)
 
 	select {
 	case response := <-sendChan:

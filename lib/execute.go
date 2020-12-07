@@ -36,12 +36,12 @@ import (
 // flake holds a SonyFlake object for UUID creation. The start time is time.Now().
 var flake = sonyflake.NewSonyflake(sonyflake.Settings{StartTime: time.Now()})
 
-// Execute runs a task on the given node nodes and block until all task results are retrieved.
-// It will fail if no job is present on the node systems. An optional timeout parameter can be provided.
-func (n Node) Execute(t Task, timeout ...time.Duration) (res Result, err error) {
-	if !n.server.Config.DisableConnectionWatchdog {
+// Execute runs a task on the given node and blocks until the task results are retrieved.
+// It will fail if no job is present on the node's systems. An optional timeout parameter can be provided.
+func (s *Server) Execute(n Node, t Task, timeout ...time.Duration) (res Result, err error) {
+	if !s.Config.DisableConnectionWatchdog {
 		terminateChan := make(chan bool, 1)
-		go startConnectionWatchdog(n.server, terminateChan)
+		go startConnectionWatchdog(s, terminateChan)
 		defer func() {
 			terminateChan <- true
 		}()
@@ -57,7 +57,7 @@ func (n Node) Execute(t Task, timeout ...time.Duration) (res Result, err error) 
 		return Result{}, err
 	}
 
-	err = n.send(Message{
+	err = s.send(n, Message{
 		Operation: OperationJobExecute,
 		Data:      data,
 	})
@@ -65,7 +65,7 @@ func (n Node) Execute(t Task, timeout ...time.Duration) (res Result, err error) 
 		return Result{}, err
 	}
 
-	res, err = n.server.awaitTask(t.UUID, timeout...)
+	res, err = s.awaitTask(t.UUID, timeout...)
 	if err != nil {
 		return Result{}, err
 	}

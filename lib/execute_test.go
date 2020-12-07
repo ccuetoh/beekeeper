@@ -31,7 +31,7 @@ import (
 func TestWorkers_Execute(t *testing.T) {
 	s, receiveChan, sendChan := startPrimaryTestChannels()
 
-	nodes := getTestNodes(s)
+	nodes := getTestNodes()
 	task := NewTask()
 
 	go func() {
@@ -73,7 +73,7 @@ func TestWorkers_Execute(t *testing.T) {
 		}
 	}()
 
-	_, err := nodes.Execute(task, time.Second)
+	_, err := s.ExecuteMany(nodes, task, time.Second)
 	if err != nil {
 		t.Error(err)
 		return

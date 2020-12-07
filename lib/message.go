@@ -66,22 +66,44 @@ func (o Operation) String() string {
 
 // Message is used for node communication. It holds the transferable data as well as some metadata about the node.
 type Message struct {
-	SentAt        time.Time
-	From          string
-	Operation     Operation
-	Data          []byte
-	Token         string
-	Addr          *net.TCPAddr
+	// SentAt timestamp for the Message.
+	SentAt time.Time
+
+	// Name the sender's name.
+	Name string
+
+	// Operation operation the remote node wishes to execute. It may be nilled with OperationNone.
+	Operation Operation
+
+	// Data the body of the message. Contains the payload needed for the execution if the Operation.
+	Data []byte
+
+	// Token is used as a passphrase to operate in a multi-node environment.
+	Token string
+
+	// Addr is the address of the sender
+	Addr *net.TCPAddr
+
+	// RespondOnPort is the port that the sender wishes to be used for the response.
 	RespondOnPort int
-	Status        Status
-	NodeInfo      NodeInfo
+
+	// Status represents the current action the node is doing.
+	Status Status
+
+	// NodeInfo contains metadata about the sender, like OS and current usage.
+	NodeInfo NodeInfo
 }
 
 // NodeInfo holds additional info abut a node.
 type NodeInfo struct {
+	// CPUTemp is the temperature as measured in the CPU dice when possible. Certain OS can return 0.
 	CPUTemp float32
-	Usage   float32
-	OS      string
+
+	// Usage is the percentage of usage of the host system in a range from 1 (max) to 0 (min).
+	Usage float32
+
+	// OS is the GOOS of the host system.
+	OS string
 }
 
 // newMessage creates an empty message with a non-nil address
@@ -113,7 +135,7 @@ func (m Message) encode() ([]byte, error) {
 func (m Message) node() Node {
 	return Node{
 		Addr:   m.Addr,
-		Name:   m.From,
+		Name:   m.Name,
 		Status: m.Status,
 		Info:   m.NodeInfo,
 	}
@@ -129,14 +151,14 @@ func (m Message) summary() string {
 	}
 
 	return fmt.Sprintf("[Sender: %s (%s), Opearation: %s, Data size: %d]",
-		addr, m.From, m.Operation.String(), len(m.Data))
+		addr, m.Name, m.Operation.String(), len(m.Data))
 }
 
 // respond creates a new Conn and sends a Message through it.
 func (m Message) respond(s *Server, response Message) error {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("Fatal error while responding to node %s\n", m.From)
+			log.Printf("Fatal error while responding to node %s\n", m.Name)
 		}
 	}()
 
@@ -152,7 +174,7 @@ func (m Message) respond(s *Server, response Message) error {
 		return err
 	}
 
-	err = conn.send(response)
+	err = s.sendWithConn(conn, response)
 	if err != nil {
 		return err
 	}
