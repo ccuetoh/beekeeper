@@ -94,7 +94,7 @@ go func() {
 
 defer sv.Stop()
 ```  
-Now we need a list of the available nodes in our network. To do this we use `ScanLocal`. Optionally we can specify an address to connect to using the `Connect` method. 
+Now we need a list of the available nodes in our network. To do this we use `Scan`. Optionally we can specify an address to connect to using the `Connect` method. 
 ```go  
 nodes, err := beekeeper.Scan(beekeeper.DefaultScanTime) 
 if err != nil{    
@@ -103,7 +103,7 @@ if err != nil{
 ```  
 `nodes` will be a slice containing the workers available in the local network. Before we can run the task we need to distribute it among the nodes.  
 ```go  
-err = sv.DistributeJob("github.com/user/myFirstCluster", "RandomPrime", nodes) 
+err = sv.DistributeJob("github.com/user/myFirstCluster", "RandomPrime", nodes...) 
 if err != nil{    
    panic(err)  
 }  
