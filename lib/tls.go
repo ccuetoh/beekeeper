@@ -80,12 +80,12 @@ func cacheTLS(pemCert []byte, pemKey []byte) (err error) {
 		return err
 	}
 
-	err = ioutil.WriteFile(certPath, pemCert, 0700)
+	err = ioutil.WriteFile(certPath, pemCert, 0666)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(keyPath, pemKey, 0700)
+	err = ioutil.WriteFile(keyPath, pemKey, 0666)
 	if err != nil {
 		return err
 	}
