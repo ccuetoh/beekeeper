@@ -46,7 +46,7 @@ type Server struct {
 	terminationChan chan bool
 
 	// nodes keeps a list of active node connections to this server.
-	nodes     Nodes
+	nodes Nodes
 
 	// nodesLock is a RWMutex over nodes.
 	nodesLock sync.RWMutex
@@ -55,16 +55,16 @@ type Server struct {
 	queue chan Request
 
 	// sendCallback is the callback used when sending messages to a connection.
-	sendCallback   func(*Server, *Conn, Message) error
+	sendCallback func(*Server, *Conn, Message) error
 
 	// connCallback is the callback used when creating a new connection with a node.
-	connCallback   func(*Server, string, ...time.Duration) (*Conn, error)
+	connCallback func(*Server, string, ...time.Duration) (*Conn, error)
 
 	// serverCallback is the callback used for processing the request queue.
 	serverCallback func(*Server) error
 
 	// awaited is a slice with the awaited responses.
-	awaited     awaitables
+	awaited awaitables
 
 	// awaitedLock is a Mutex lock over awaited.
 	awaitedLock sync.Mutex
