@@ -14,7 +14,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/rivo/tview v0.0.0-20201118063654-f007e9ad3893
-	github.com/shirou/gopsutil v3.20.10+incompatible
+	github.com/shirou/gopsutil v3.20.11+incompatible
 	github.com/sony/sonyflake v1.0.0
 	github.com/spf13/afero v1.4.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
