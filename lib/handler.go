@@ -25,11 +25,15 @@ package beekeeper
 import (
 	"bufio"
 	"crypto/tls"
+	"errors"
 	"io"
 	"log"
 	"net"
 	"strconv"
 )
+
+// ErrMessageTooLarge is triggered when a message exceeds the size limit set by MaxMessageSize
+var ErrMessageTooLarge = errors.New("message too large")
 
 // Request represents an incoming Message with its connection
 type Request struct {
@@ -58,6 +62,11 @@ func (s *Server) handle(conn net.Conn) {
 			if err != nil {
 				log.Println("Error parsing connection header:", err.Error())
 				_ = conn.Close()
+				return
+			}
+
+			if uint64(dataLen) > s.Config.MaxMessageSize {
+				log.Println("Error parsing connection data:", ErrMessageTooLarge)
 				return
 			}
 

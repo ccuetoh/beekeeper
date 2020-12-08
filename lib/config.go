@@ -41,19 +41,45 @@ var WatchdogSleep = time.Second * 15
 
 // Config holds the configurations for a node or a primary node.
 type Config struct {
-	// Basic
-	Name         string `mapstructure:"name,omitempty"`
-	Debug        bool   `mapstructure:"debug,omitempty"`
-	Token        string `mapstructure:"token,omitempty"`
-	InboundPort  int    `mapstructure:"inbound_port,omitempty"`
-	OutboundPort int    `mapstructure:"outbound_port,omitempty"`
+	// Name of the node. It defaults to the system's hostname.
+	Name string `mapstructure:"name,omitempty"`
 
-	// TLS
+	// Debug toggles between verbosity for debugging.
+	Debug bool `mapstructure:"debug,omitempty"`
+
+	// Token is a passphrase used to restrict usage of the node. Must match on the receiving node.
+	Token string `mapstructure:"token,omitempty"`
+
+	// InboundPort is the port to be used for receiving connections. Defaults to 2020.
+	InboundPort int `mapstructure:"inbound_port,omitempty"`
+
+	// OutboundPort is the port assumed to be used by a remote node. It's only used to establish a connection, and
+	// afterwards a port is negotiated with the remote node. Defaults to 2020.
+	OutboundPort int `mapstructure:"outbound_port,omitempty"`
+
+	// TLSCertificate is used for TLS connections between nodes. If none is given a certificate is created on the first
+	// run and reused as needed.
 	TLSCertificate []byte
-	TLSPrivateKey  []byte
 
-	// Disables
-	DisableCleanup            bool `mapstructure:"disable_cleanup,omitempty"`
+	// TLSPrivateKey is used for TLS connections between nodes. If none is given a key is created on the first
+	// run and reused as needed.
+	TLSPrivateKey []byte
+
+	// AllowExternal sets whether non-local connections should be accepted. It's heavily encouraged that a whitelist
+	// and token is set with this featured turn on. Defaults to false.
+	AllowExternal bool
+
+	// Whitelist contains a list of allowed hosts. If none is provided it's understood that the whitelist is disabled.
+	// A wildcard sign (*) can be used.
+	Whitelist []string `mapstructure:"whitelist,omitempty"`
+
+	// MaxMessageSize is the size limit in bytes for incoming messages. It defaults to 1.024 MB
+	MaxMessageSize uint64 `mapstructure:"max_message_size,omitempty"`
+
+	// DisableCleanup turns off the post-build cleanup
+	DisableCleanup bool `mapstructure:"disable_cleanup,omitempty"`
+
+	// DisableConnectionWatchdog disables the connection watchdog, and stops disconnection notifications.
 	DisableConnectionWatchdog bool `mapstructure:"disable_connection_watchdog,omitempty"`
 }
 
@@ -70,6 +96,8 @@ func NewDefaultConfig() (c Config) {
 	c.InboundPort = DefaultPort
 	c.OutboundPort = DefaultPort
 	c.DisableCleanup = false
+	c.AllowExternal = false
+	c.MaxMessageSize = 1 << 9 // 1.024 MB
 
 	return c
 }

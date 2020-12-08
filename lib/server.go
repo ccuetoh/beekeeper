@@ -25,14 +25,20 @@ package beekeeper
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"log"
+	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
 // ErrTerminated is returned when a server gets terminated
 var ErrTerminated = errors.New("terminated")
+
+// privateIPBlocksStr contains a list of local-only IP blocks as CIDR IPNets
+var privateIPBlocks []*net.IPNet
 
 // Server is a node server, that holds the configuration to be used.
 type Server struct {
@@ -219,6 +225,25 @@ func (s *Server) isOnline(n Node) bool {
 
 // defaultServeCallback listens for TCP connections and sends the processed output of handler to the c chan.
 func defaultServeCallback(s *Server) error {
+	// Prepare the private IP block list
+	for _, cidr := range []string{
+		"127.0.0.0/8",    // IPv4 loopback
+		"10.0.0.0/8",     // RFC1918
+		"172.16.0.0/12",  // RFC1918
+		"192.168.0.0/16", // RFC1918
+		"169.254.0.0/16", // RFC3927 link-local
+		"::1/128",        // IPv6 loopback
+		"fe80::/10",      // IPv6 link-local
+		"fc00::/7",       // IPv6 unique local addr
+	} {
+		_, block, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return fmt.Errorf("parse error on %q: %v", cidr, err)
+		}
+
+		privateIPBlocks = append(privateIPBlocks, block)
+	}
+
 	cer, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
 	if err != nil {
 		log.Fatal(err)
@@ -233,6 +258,19 @@ func defaultServeCallback(s *Server) error {
 
 	go func() {
 		for {
+			ip := l.Addr().(*net.TCPAddr).IP
+			if !s.Config.AllowExternal {
+				if !isPrivateIP(ip) {
+					continue
+				}
+			}
+
+			if len(s.Config.Whitelist) > 0 {
+				if !isWhitelisted(ip, s.Config.Whitelist) {
+					continue
+				}
+			}
+
 			conn, err := l.Accept()
 			if err != nil {
 				log.Println("Received invalid connection:", err)
@@ -279,4 +317,50 @@ func (s *Server) send(n Node, m Message) error {
 // sendWithConn fills the Message with the required metadata and sends it.
 func (s *Server) sendWithConn(c *Conn, m Message) error {
 	return s.sendCallback(s, c, m)
+}
+
+// isPrivateIP asserts whether an IP corresponds to a private (local) IP block.
+func isPrivateIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	for _, block := range privateIPBlocks {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isWhitelisted asserts whether an IP is found in a whitelist. It accepts * as a wildcard. Currently only implemented
+// for IPv4.
+func isWhitelisted(ip net.IP, wl []string) bool {
+	ipSects := strings.Split(ip.String(), ".")
+
+	for _, wlIP := range wl {
+		wlIPSects := strings.Split(wlIP, ".")
+		for i, sec := range  wlIPSects {
+			if len(ipSects) < i + 1 {
+				break
+			}
+
+			// Wildcard
+			if sec == "*" {
+				return true
+			}
+
+			// Block
+			if sec != ipSects[i] && sec != "*" {
+				break
+			}
+
+			if i == len(wlIPSects) - 1 {
+				return true
+			}
+		}
+	}
+
+	return false
 }

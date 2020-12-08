@@ -36,6 +36,8 @@ func TestNewConfigFromFile(t *testing.T) {
 		OutboundPort:              222,
 		DisableCleanup:            true,
 		DisableConnectionWatchdog: true,
+		MaxMessageSize:            9999999,
+		Whitelist: []string{"*", "111.111.111.111", "0.0.0.0"},
 	}
 
 	fileConfig, err := NewConfigFromFile("../test/config.yaml")

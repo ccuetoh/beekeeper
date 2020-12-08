@@ -5,3 +5,5 @@ inbound_port: 111
 outbound_port: 222
 disable_cleanup: True
 disable_connection_watchdog: True
+max_message_size: 9999999
+whitelist: ["*", "111.111.111.111", "0.0.0.0"]

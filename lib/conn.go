@@ -90,6 +90,10 @@ func defaultSendCallback(s *Server, c *Conn, m Message) error {
 		return err
 	}
 
+	if uint64(len(data)) > s.Config.MaxMessageSize {
+		return ErrMessageTooLarge
+	}
+
 	header := []byte(fmt.Sprintf("%d\n", len(data)))
 	data = append(header, data...)
 
