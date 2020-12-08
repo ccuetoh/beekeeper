@@ -187,7 +187,7 @@ func readBinary(path string) ([]byte, error) {
 
 // saveBinary creates or replaces a file in the given path and writes a byte slice to its contents.
 func saveBinary(path string, data []byte) error {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0700)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func saveBinary(path string, data []byte) error {
 // createFolderIfNotExist checks if a folder exists in the given path. If none is found one is created.
 func createFolderIfNotExist(path string) error {
 	if !doesPathExists(path) {
-		err := os.Mkdir(path, 0600)
+		err := os.Mkdir(path, 0666)
 		if err != nil {
 			return err
 		}
