@@ -205,7 +205,7 @@ func saveBinary(path string, data []byte) error {
 // createFolderIfNotExist checks if a folder exists in the given path. If none is found one is created.
 func createFolderIfNotExist(path string) error {
 	if !doesPathExists(path) {
-		err := os.Mkdir(path, 600)
+		err := os.Mkdir(path, 0600)
 		if err != nil {
 			return err
 		}
