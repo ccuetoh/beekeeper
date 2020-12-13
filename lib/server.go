@@ -341,8 +341,8 @@ func isWhitelisted(ip net.IP, wl []string) bool {
 
 	for _, wlIP := range wl {
 		wlIPSects := strings.Split(wlIP, ".")
-		for i, sec := range  wlIPSects {
-			if len(ipSects) < i + 1 {
+		for i, sec := range wlIPSects {
+			if len(ipSects) < i+1 {
 				break
 			}
 
@@ -356,7 +356,7 @@ func isWhitelisted(ip net.IP, wl []string) bool {
 				break
 			}
 
-			if i == len(wlIPSects) - 1 {
+			if i == len(wlIPSects)-1 {
 				return true
 			}
 		}
