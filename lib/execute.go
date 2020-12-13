@@ -35,8 +35,8 @@ import (
 	"time"
 )
 
-// flake holds a SonyFlake object for UUID creation. The start time is time.Now().
-var flake = newFlake()
+// flake holds a SonyFlake object for UUID creation. It gets created as needed, and is nil before that.
+var flake *sonyflake.Sonyflake = nil
 
 // Execute runs a task on the given node and blocks until the task results are retrieved.
 // It will fail if no job is present on the node's systems. An optional timeout parameter can be provided.
@@ -171,6 +171,10 @@ func newFlake() *sonyflake.Sonyflake {
 
 // newJobUUID creates a new UUID for job identification. It's not guaranteed to be unique for multiple sessions.
 func newJobUUID() (string, error) {
+	if flake == nil {
+		flake = newFlake()
+	}
+
 	num, err := flake.NextID()
 	if err != nil {
 		return "", err
