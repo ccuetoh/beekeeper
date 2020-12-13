@@ -9,5 +9,5 @@ const (
 	License = "MIT"
 
 	// Author is the first and last name of the package's author.
-	Author  = "Camilo Hernández"
+	Author = "Camilo Hernández"
 )
