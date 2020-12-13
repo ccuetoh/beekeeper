@@ -24,7 +24,6 @@ package beekeeper
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -32,10 +31,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-// ErrTerminated is returned when a server gets terminated
-var ErrTerminated = errors.New("terminated")
+	"github.com/pkg/errors"
+)
 
 // privateIPBlocksStr contains a list of local-only IP blocks as CIDR IPNets
 var privateIPBlocks []*net.IPNet
@@ -117,7 +115,11 @@ func NewServer(configs ...Config) *Server {
 func (s *Server) Start() error {
 	log.Println("Starting server")
 
-	err := s.serverCallback(s)
+	if s.Config.AllowExternal && len(s.Config.Whitelist) < 0 {
+		log.Println("Warning: External connections are allowed but the whitelist is disabled.")
+	}
+
+		err := s.serverCallback(s)
 	if err != nil {
 		return err
 	}
@@ -127,7 +129,7 @@ func (s *Server) Start() error {
 	for {
 		select {
 		case <-s.terminationChan:
-			return ErrTerminated
+			return nil
 		case req := <-s.queue:
 			authed := req.Msg.isTokenMatching(s.Config.Token)
 			if !authed {
@@ -225,28 +227,14 @@ func (s *Server) isOnline(n Node) bool {
 
 // defaultServeCallback listens for TCP connections and sends the processed output of handler to the c chan.
 func defaultServeCallback(s *Server) error {
-	// Prepare the private IP block list
-	for _, cidr := range []string{
-		"127.0.0.0/8",    // IPv4 loopback
-		"10.0.0.0/8",     // RFC1918
-		"172.16.0.0/12",  // RFC1918
-		"192.168.0.0/16", // RFC1918
-		"169.254.0.0/16", // RFC3927 link-local
-		"::1/128",        // IPv6 loopback
-		"fe80::/10",      // IPv6 link-local
-		"fc00::/7",       // IPv6 unique local addr
-	} {
-		_, block, err := net.ParseCIDR(cidr)
-		if err != nil {
-			return fmt.Errorf("parse error on %q: %v", cidr, err)
-		}
-
-		privateIPBlocks = append(privateIPBlocks, block)
+	err := initPrivateIPs()
+	if err != nil {
+		return errors.Wrap(err, "unable to parse ips")
 	}
 
 	cer, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(errors.Wrap(err, "invalid tls certificate or private key"))
 	}
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}, InsecureSkipVerify: true}
@@ -302,13 +290,13 @@ func (s *Server) send(n Node, m Message) error {
 		var err error
 		n.Conn, err = s.dial(n.Addr.IP.String())
 		if err != nil {
-			return err
+			return errors.Wrap(err, "connection error")
 		}
 	}
 
 	err := s.sendWithConn(n.Conn, m)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "send error")
 	}
 
 	return nil
@@ -317,6 +305,28 @@ func (s *Server) send(n Node, m Message) error {
 // sendWithConn fills the Message with the required metadata and sends it.
 func (s *Server) sendWithConn(c *Conn, m Message) error {
 	return s.sendCallback(s, c, m)
+}
+
+func initPrivateIPs() error {
+	for _, cidr := range []string{
+		"127.0.0.0/8",    // IPv4 loopback
+		"10.0.0.0/8",     // RFC1918
+		"172.16.0.0/12",  // RFC1918
+		"192.168.0.0/16", // RFC1918
+		"169.254.0.0/16", // RFC3927 link-local
+		"::1/128",        // IPv6 loopback
+		"fe80::/10",      // IPv6 link-local
+		"fc00::/7",       // IPv6 unique local addr
+	} {
+		_, block, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return fmt.Errorf("parse error on %q: %v", cidr, err)
+		}
+
+		privateIPBlocks = append(privateIPBlocks, block)
+	}
+
+	return nil
 }
 
 // isPrivateIP asserts whether an IP corresponds to a private (local) IP block.
