@@ -65,7 +65,7 @@ func getTLSCache() (pemCert []byte, pemKey []byte, err error) {
 	return pemCert, pemKey, nil
 }
 
-func cacheTLS(pemCert []byte, pemKey []byte) (err error) {
+func saveTLS(pemCert []byte, pemKey []byte) (err error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
 		return err

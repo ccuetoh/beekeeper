@@ -96,9 +96,9 @@ func NewServer(configs ...Config) *Server {
 				log.Panicln("Unable to create TLS certificate")
 			}
 
-			err = cacheTLS(config.TLSCertificate, config.TLSPrivateKey)
+			err = saveTLS(config.TLSCertificate, config.TLSPrivateKey)
 			if err != nil {
-				log.Println("Unable to cache TLS certificate:", err.Error())
+				log.Println("Unable to save TLS certificate:", err.Error())
 			}
 		}
 	}
