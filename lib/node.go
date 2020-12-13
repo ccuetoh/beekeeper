@@ -20,7 +20,6 @@
  * THE SOFTWARE.
  */
 
-// Package beekeeper is a batteries-included cluster computing library
 package beekeeper
 
 import (
