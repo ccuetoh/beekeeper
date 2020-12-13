@@ -27,6 +27,8 @@ import (
 	"errors"
 	"github.com/sony/sonyflake"
 	"io"
+	"log"
+	"math/rand"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -34,7 +36,7 @@ import (
 )
 
 // flake holds a SonyFlake object for UUID creation. The start time is time.Now().
-var flake = sonyflake.NewSonyflake(sonyflake.Settings{StartTime: time.Now()})
+var flake = newFlake()
 
 // Execute runs a task on the given node and blocks until the task results are retrieved.
 // It will fail if no job is present on the node's systems. An optional timeout parameter can be provided.
@@ -134,6 +136,37 @@ func runLocalJob(t Task) (Result, error) {
 	res.UUID = t.UUID
 
 	return res, nil
+}
+
+// newFlake creates a new SonyFlake generator. If the instantiation of the generator fails, a randomly generated one
+// is provided. If both options fail it exists.
+func newFlake() *sonyflake.Sonyflake {
+	s := sonyflake.Settings{StartTime: time.Now()}
+	f := sonyflake.NewSonyflake(s)
+	if f != nil {
+		// Normal creation was ok
+		return f
+	}
+
+	// Flake was unable to start, use a random generator
+	log.Println("Unable to start the UUID generator, a random generator will be used.")
+
+	s.MachineID = func() (uint16, error) {
+		return uint16(rand.Uint32()), nil
+	}
+
+	s.CheckMachineID = func(_ uint16) bool {
+		return true
+	}
+
+	f = sonyflake.NewSonyflake(s)
+	if f != nil {
+		return f
+	}
+
+	// All options failed
+	log.Fatalln("Unable to start UUID or random generator.")
+	return nil
 }
 
 // newJobUUID creates a new UUID for job identification. It's not guaranteed to be unique for multiple sessions.
