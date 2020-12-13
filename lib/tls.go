@@ -29,13 +29,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"io/ioutil"
 	"math/big"
 	"path/filepath"
 	"time"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/pkg/errors"
 )
 
 func getTLSCache() (pemCert []byte, pemKey []byte, err error) {
@@ -54,12 +54,12 @@ func getTLSCache() (pemCert []byte, pemKey []byte, err error) {
 
 	pemCert, err = ioutil.ReadFile(certPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "cert file read error")
 	}
 
 	pemKey, err = ioutil.ReadFile(keyPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "key file read error")
 	}
 
 	return pemCert, pemKey, nil
@@ -77,7 +77,7 @@ func saveTLS(pemCert []byte, pemKey []byte) (err error) {
 
 	err = createFolderIfNotExist(folderPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "unable to create folder")
 	}
 
 	err = ioutil.WriteFile(certPath, pemCert, 0666)
@@ -132,7 +132,7 @@ func newSelfSignedCert() (pemCert []byte, pemKey []byte, err error) {
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrap(err, "encode error")
 	}
 	pemKey = buf.Bytes()
 
