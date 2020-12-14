@@ -38,6 +38,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// getTLSCache fetches the TLS cert and key if they are present in the home directory cache. If none is found an error
+// is returned.
 func getTLSCache() (pemCert []byte, pemKey []byte, err error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -65,6 +67,7 @@ func getTLSCache() (pemCert []byte, pemKey []byte, err error) {
 	return pemCert, pemKey, nil
 }
 
+// saveTLS stores the cert and key in the home directory cache.
 func saveTLS(pemCert []byte, pemKey []byte) (err error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -93,6 +96,7 @@ func saveTLS(pemCert []byte, pemKey []byte) (err error) {
 	return nil
 }
 
+// newSelfSignedCert creates a self_signed certificate and key.
 func newSelfSignedCert() (pemCert []byte, pemKey []byte, err error) {
 	bits := 4096
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
