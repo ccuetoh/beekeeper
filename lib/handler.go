@@ -78,7 +78,7 @@ func (s *Server) handle(conn net.Conn) {
 			}
 
 			if readLen != dataLen {
-				logger.Errorln("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
+				logger.Errorf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
 				_ = conn.Close()
 				return
 			}

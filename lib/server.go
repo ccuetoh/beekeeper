@@ -25,7 +25,6 @@ package beekeeper
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
 	"strconv"
 	"strings"
@@ -33,6 +32,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // logger is a logrus logger
@@ -116,6 +116,10 @@ func NewServer(configs ...Config) *Server {
 
 // Start serves a node and blocks.
 func (s *Server) Start() error {
+	if s.Config.Debug {
+		logger.SetLevel(logrus.DebugLevel)
+	}
+
 	logger.Infoln("Starting server")
 
 	if s.Config.AllowExternal && len(s.Config.Whitelist) < 0 {
@@ -127,7 +131,7 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	logger.Infoln("Listening on port %d\n", s.Config.InboundPort)
+	logger.Infoln("Listening on port", s.Config.InboundPort)
 
 	for {
 		select {
@@ -284,7 +288,7 @@ func (s *Server) send(n Node, m Message) error {
 	}()
 
 	if n.Conn == nil {
-		logger.Debugln("Creating new connection to node %s", n.Name)
+		logger.Debugln("Creating new connection to node", n.Name)
 
 		var err error
 		n.Conn, err = s.dial(n.Addr.IP.String())
