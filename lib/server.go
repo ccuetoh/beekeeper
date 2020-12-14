@@ -25,7 +25,7 @@ package beekeeper
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
+	"github.com/sirupsen/logrus"
 	"net"
 	"strconv"
 	"strings"
@@ -34,6 +34,9 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+// logger is a logrus logger
+var logger = logrus.New()
 
 // privateIPBlocksStr contains a list of local-only IP blocks as CIDR IPNets
 var privateIPBlocks []*net.IPNet
@@ -87,16 +90,16 @@ func NewServer(configs ...Config) *Server {
 		var err error
 		config.TLSCertificate, config.TLSPrivateKey, err = getTLSCache()
 		if err != nil {
-			log.Println("Creating TLS certificates. This can take a while but is only done once")
+			logger.Infoln("Creating TLS certificates. This can take a while but is only done once")
 
 			config.TLSCertificate, config.TLSPrivateKey, err = newSelfSignedCert()
 			if err != nil {
-				log.Panicln("Unable to create TLS certificate")
+				logger.Errorln("Unable to create TLS certificate:", err)
 			}
 
 			err = saveTLS(config.TLSCertificate, config.TLSPrivateKey)
 			if err != nil {
-				log.Println("Unable to save TLS certificate:", err.Error())
+				logger.Errorln("Unable to save TLS certificate:", err)
 			}
 		}
 	}
@@ -113,18 +116,18 @@ func NewServer(configs ...Config) *Server {
 
 // Start serves a node and blocks.
 func (s *Server) Start() error {
-	log.Println("Starting server")
+	logger.Infoln("Starting server")
 
 	if s.Config.AllowExternal && len(s.Config.Whitelist) < 0 {
-		log.Println("Warning: External connections are allowed but the whitelist is disabled.")
+		logger.Warnln("External connections are allowed but the whitelist is disabled")
 	}
 
-		err := s.serverCallback(s)
+	err := s.serverCallback(s)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Listening on port %d\n", s.Config.InboundPort)
+	logger.Infoln("Listening on port %d\n", s.Config.InboundPort)
 
 	for {
 		select {
@@ -136,9 +139,7 @@ func (s *Server) Start() error {
 				continue
 			}
 
-			if s.Config.Debug {
-				log.Println("Received:", req.Msg.summary())
-			}
+			logger.Debugln("Received:", req.Msg.summary())
 
 			s.updateNode(req.Msg.node())
 			go s.handleMessage(&req.Conn, req.Msg)
@@ -234,7 +235,7 @@ func defaultServeCallback(s *Server) error {
 
 	cer, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "invalid tls certificate or private key"))
+		logger.Fatal(errors.Wrap(err, "invalid tls certificate or private key"))
 	}
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cer}, InsecureSkipVerify: true}
@@ -261,7 +262,7 @@ func defaultServeCallback(s *Server) error {
 
 			conn, err := l.Accept()
 			if err != nil {
-				log.Println("Received invalid connection:", err)
+				logger.Errorln("Received invalid connection:", err)
 				continue
 			}
 
@@ -278,14 +279,12 @@ func defaultServeCallback(s *Server) error {
 func (s *Server) send(n Node, m Message) error {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("Fatal error while sending to node %s: %s\n", n.Name, r)
+			logger.Errorln("An error ocurred while responding to", m.Name, ":", r)
 		}
 	}()
 
 	if n.Conn == nil {
-		if s.Config.Debug {
-			log.Printf("Creating new connection to node %s", n.Name)
-		}
+		logger.Debugln("Creating new connection to node %s", n.Name)
 
 		var err error
 		n.Conn, err = s.dial(n.Addr.IP.String())

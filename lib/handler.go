@@ -27,7 +27,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"strconv"
 )
@@ -60,13 +59,13 @@ func (s *Server) handle(conn net.Conn) {
 
 			dataLen, err := strconv.Atoi(string(header))
 			if err != nil {
-				log.Println("Error parsing connection header:", err.Error())
+				logger.Errorln("Failed to parse connection header:", err)
 				_ = conn.Close()
 				return
 			}
 
 			if uint64(dataLen) > s.Config.MaxMessageSize {
-				log.Println("Error parsing connection data:", ErrMessageTooLarge)
+				logger.Errorln("Bad connection header: doesn't match declared length")
 				return
 			}
 
@@ -79,14 +78,14 @@ func (s *Server) handle(conn net.Conn) {
 			}
 
 			if readLen != dataLen {
-				log.Printf("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
+				logger.Errorln("Error: Expected to read %d bytes, but read %d\n", readLen, dataLen)
 				_ = conn.Close()
 				return
 			}
 
 			msg, err := decodeMessage(dataBuf)
 			if err != nil {
-				log.Println("Error reading data:", err.Error())
+				logger.Errorln("Unable to decode message data:", err)
 				_ = conn.Close()
 				return
 			}

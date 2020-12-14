@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -68,7 +67,7 @@ func buildJob(pkgName string, function string, distributions []string) (map[stri
 
 	binPaths := make(map[string]string)
 	for _, goos := range distributions {
-		log.Println("Building binaries for", goos)
+		logger.Infoln("Building binaries for", goos)
 
 		err = os.Setenv("GOOS", goos)
 		if err != nil {

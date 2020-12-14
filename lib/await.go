@@ -24,7 +24,6 @@ package beekeeper
 
 import (
 	"errors"
-	"log"
 	"net"
 	"time"
 )
@@ -54,7 +53,7 @@ func (s *Server) awaitTask(taskId string, timeout ...time.Duration) (Result, err
 			if msg.Operation == OperationJobResult {
 				res, err := decodeResult(msg.Data)
 				if err != nil {
-					log.Println("Error: Unable to decode task response")
+					logger.Errorln("Unable to decode task response:", err)
 					return false
 				}
 

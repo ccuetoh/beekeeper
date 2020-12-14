@@ -27,7 +27,6 @@ import (
 	"errors"
 	"github.com/sony/sonyflake"
 	"io"
-	"log"
 	"math/rand"
 	"os/exec"
 	"path/filepath"
@@ -149,7 +148,7 @@ func newFlake() *sonyflake.Sonyflake {
 	}
 
 	// Flake was unable to start, use a random generator
-	log.Println("Unable to start the UUID generator, a random generator will be used.")
+	logger.Warnln("Unable to start the UUID generator, a random generator will be used.")
 
 	s.MachineID = func() (uint16, error) {
 		return uint16(rand.Uint32()), nil
@@ -165,7 +164,7 @@ func newFlake() *sonyflake.Sonyflake {
 	}
 
 	// All options failed
-	log.Fatalln("Unable to start UUID or random generator.")
+	logger.Fatalln("Unable to start UUID or random generator.")
 	return nil
 }
 

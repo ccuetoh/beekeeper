@@ -25,7 +25,6 @@ package beekeeper
 import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
-	"log"
 	"os"
 	"time"
 
@@ -66,7 +65,7 @@ func (m *Monitor) Run(configs ...Config) {
 	go func() {
 		err := m.server.Start()
 		if err != nil {
-			log.Panic("Unable to start server:", err.Error())
+			logger.Fatalln("Unable to start server:", err.Error())
 		}
 	}()
 
@@ -102,7 +101,7 @@ func (m *Monitor) Run(configs ...Config) {
 				RespondOnPort: config.InboundPort}, true)
 
 			if err != nil {
-				log.Println("Unable to broadcast status Request:", err.Error())
+				logger.Errorln("Unable to broadcast status request:", err)
 
 				time.Sleep(sleepTime)
 				continue
@@ -125,7 +124,7 @@ func (m *Monitor) Run(configs ...Config) {
 
 	err := m.App.Run()
 	if err != nil {
-		log.Panic("Unable to start monitor interface:", err.Error())
+		logger.Fatalln("Unable to start monitor interface:", err)
 	}
 }
 

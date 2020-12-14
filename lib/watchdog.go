@@ -23,7 +23,6 @@
 package beekeeper
 
 import (
-	"log"
 	"time"
 )
 
@@ -40,7 +39,7 @@ func startConnectionWatchdog(s *Server, terminate chan bool) {
 			s.nodes = Nodes{}
 			err := s.broadcastOperation(OperationStatus, false)
 			if err != nil {
-				log.Println("Unable to broadcast as watchdog:", err.Error())
+				logger.Errorln("Unable to broadcast from watchdog:", err.Error())
 			}
 		}
 	}

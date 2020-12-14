@@ -26,26 +26,25 @@ import (
 	"fmt"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/host"
-	"log"
 	"math"
 	"runtime"
 	"time"
 )
 
 // jobResultCallback is the callback for the JobResult operation.
-func jobResultCallback(s *Server, conn *Conn, msg Message) {
+func jobResultCallback(_ *Server, _ *Conn, _ Message) {
 	// Only updating the node list is needed. Kept for consistency
 	return
 }
 
 // transferStatusCallback is the callback for the JobTransferAcknowledge and JobTransferFailed operations.
-func transferStatusCallback(s *Server, conn *Conn, msg Message) {
+func transferStatusCallback(_ *Server, _ *Conn, _ Message) {
 	// Only updating the node list is needed. Kept for consistency
 	return
 }
 
 // statusCallback is the callback for the Status operation.
-func statusCallback(s *Server, conn *Conn, msg Message) {
+func statusCallback(s *Server, conn *Conn, _ Message) {
 	ni := NodeInfo{}
 
 	// CPU Usage
@@ -59,26 +58,26 @@ func statusCallback(s *Server, conn *Conn, msg Message) {
 
 	err = s.sendWithConn(conn, Message{NodeInfo: ni})
 	if err != nil {
-		log.Println("Error while responding to Status Request:", err.Error())
+		logger.Errorln("Unable to respond to a status request:", err)
 		return
 	}
 }
 
 // jobTransferCallback is the callback for the JobTransfer operation.
 func jobTransferCallback(s *Server, conn *Conn, msg Message) {
-	log.Println("Transferring new job from node", msg.Name)
+	logger.Infoln("Starting job transfer from node", msg.Name)
 
 	folderPath := ".beekeeper"
 	err := createFolderIfNotExist(folderPath)
 	if err != nil {
-		log.Println("Unable to create beekeeper folder:", err.Error())
+		logger.Println("Unable to create beekeeper folder:", err.Error())
 		respondTransferError(s, conn, err.Error())
 
 		return
 	}
 
 	if len(msg.Data) == 0 {
-		log.Println("Unable to save job data: empty data field")
+		logger.Errorln("Unable to save job data: empty data field")
 		respondTransferError(s, conn, "empty data field")
 
 		return
@@ -87,7 +86,7 @@ func jobTransferCallback(s *Server, conn *Conn, msg Message) {
 	binPath := folderPath + "/job.bin"
 	err = saveBinary(binPath, msg.Data)
 	if err != nil {
-		log.Println("Unable to save job data:", err.Error())
+		logger.Errorln("Unable to save job data:", err)
 		respondTransferError(s, conn, err.Error())
 
 		return
@@ -95,41 +94,41 @@ func jobTransferCallback(s *Server, conn *Conn, msg Message) {
 
 	err = s.sendWithConn(conn, Message{Operation: OperationTransferAcknowledge})
 	if err != nil {
-		log.Println("Error while acknowledging transfer:", err.Error())
+		logger.Println("Failed to acknowledge transfer:", err)
 
 		return
 	}
 
-	log.Println("New job transferred successfully")
+	logger.Println("Job transferred successfully from node", msg.Name)
 }
 
 // jobExecuteCallback is the callback for the JobExecute operation.
 func jobExecuteCallback(s *Server, conn *Conn, msg Message) {
 	task, err := decodeTask(msg.Data)
 	if err != nil {
-		log.Println("Unable to read task data:", err.Error())
+		logger.Errorln("Unable to read task data:", err)
 		return
 	}
 
-	log.Println("Executing task", task.UUID, "from node", msg.Name)
+	logger.Infoln("Executing task", task.UUID, "for node", msg.Name)
 
 	s.Status = StatusWorking
 
 	res, err := runLocalJob(task)
 	if err != nil {
 		errMsg := "Unable to run job: " + err.Error()
-		log.Println(errMsg)
+		logger.Errorln(errMsg)
 
 		res = Result{UUID: task.UUID, Error: errMsg}
 	}
 
-	log.Println("Ran task", task.UUID, "successfully")
+	logger.Infoln("Ran task", task.UUID, "successfully")
 
 	s.Status = StatusIDLE
 
 	resBytes, err := res.encode()
 	if err != nil {
-		log.Println("Unable to encode response:", err.Error())
+		logger.Errorln("Unable to encode response:", err)
 		return
 	}
 
@@ -138,7 +137,7 @@ func jobExecuteCallback(s *Server, conn *Conn, msg Message) {
 		Data:      resBytes,
 	})
 	if err != nil {
-		log.Println("Error while sending Result to job Request:", err.Error())
+		logger.Errorln("Failed to send job result:", err)
 		return
 	}
 }
@@ -147,7 +146,7 @@ func jobExecuteCallback(s *Server, conn *Conn, msg Message) {
 func respondTransferError(s *Server, conn *Conn, errMsg string) {
 	err := s.sendWithConn(conn, Message{Operation: OperationTransferFailed, Data: []byte(errMsg)})
 	if err != nil {
-		log.Println("Error while reporting transfer error:", err.Error())
+		logger.Errorln("An additional error arose while reporting the transfer error:", err.Error())
 	}
 }
 

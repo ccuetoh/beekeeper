@@ -24,7 +24,6 @@ package beekeeper
 
 import (
 	"github.com/spf13/viper"
-	"log"
 	"time"
 )
 
@@ -88,7 +87,7 @@ type Config struct {
 func NewDefaultConfig() (c Config) {
 	name, err := getHostname()
 	if err != nil {
-		log.Println("Error while fetching computer name:", err.Error())
+		logger.Errorln("Unable to fetch hostname:", err.Error())
 	} else {
 		c.Name = name
 	}

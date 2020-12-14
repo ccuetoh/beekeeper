@@ -25,7 +25,6 @@ package beekeeper
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"runtime"
@@ -49,7 +48,7 @@ func (s *Server) dial(ip string, timeout ...time.Duration) (*Conn, error) {
 func defaultConnCallback(s *Server, ip string, timeout ...time.Duration) (*Conn, error) {
 	cert, err := tls.X509KeyPair(s.Config.TLSCertificate, s.Config.TLSPrivateKey)
 	if err != nil {
-		log.Fatal("Failed to parse TLS certificate")
+		logger.Fatalln("Failed to parse TLS certificate")
 	}
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
@@ -102,9 +101,7 @@ func defaultSendCallback(s *Server, c *Conn, m Message) error {
 		return err
 	}
 
-	if s.Config.Debug {
-		log.Println("Sent:", m.summary())
-	}
+	logger.Debugln("Sent:", m.summary())
 
 	return nil
 }

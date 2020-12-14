@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,7 +115,7 @@ func (s *Server) DistributeJob(pkgName string, function string, nodes ...Node) e
 	if !s.Config.DisableCleanup {
 		err = cleanupBuild()
 		if err != nil {
-			log.Println("Unable to perform cleanup:", err.Error())
+			logger.Warnln("Unable to perform cleanup:", err)
 		}
 	}
 

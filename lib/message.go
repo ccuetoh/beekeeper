@@ -27,7 +27,6 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"fmt"
-	"log"
 	"net"
 	"time"
 )
@@ -158,7 +157,7 @@ func (m Message) summary() string {
 func (m Message) respond(s *Server, response Message) error {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("Fatal error while responding to node %s\n", m.Name)
+			logger.Errorln("An error ocurred while responding to", m.Name, ":", r)
 		}
 	}()
 
