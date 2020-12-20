@@ -96,7 +96,7 @@ func NewDefaultConfig() (c Config) {
 	c.OutboundPort = DefaultPort
 	c.DisableCleanup = false
 	c.AllowExternal = false
-	c.MaxMessageSize = 1 << 9 // 1.024 MB
+	c.MaxMessageSize = (1 << 20) * 1000 // 1.048 MB
 
 	return c
 }
