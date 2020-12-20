@@ -120,7 +120,7 @@ if err != nil{
 The execution will now block until all nodes have finished their task. Afterwards we iterate over the results and print the.  
 ```go  
 var primes []int64 for _, result := range results{    
-   print(result.Task.Returns["primes"].[]int64)  
+   fmt.Println(result.Task.Returns["primes"].[]int64)  
 }  
 ```  
   
