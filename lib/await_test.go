@@ -110,6 +110,8 @@ func TestAwaitTask(t *testing.T) {
 		}
 	}()
 
+	time.Sleep(time.Millisecond * 100)
+
 	msg := newMessage()
 	msg.Operation = OperationJobResult
 
