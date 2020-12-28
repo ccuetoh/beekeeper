@@ -66,7 +66,7 @@ type Config struct {
 
 	// AllowExternal sets whether non-local connections should be accepted. It's heavily encouraged that a whitelist
 	// and token is set with this featured turn on. Defaults to false.
-	AllowExternal bool
+	AllowExternal bool `mapstructure:"allow_external,omitempty"`
 
 	// Whitelist contains a list of allowed hosts. If none is provided it's understood that the whitelist is disabled.
 	// A wildcard sign (*) can be used.
