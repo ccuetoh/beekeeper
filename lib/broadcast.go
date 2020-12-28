@@ -77,7 +77,6 @@ func broadcastCallback(s *Server, msg Message, await bool) error {
 
 			err = s.sendWithConn(conn, msg)
 			if err != nil {
-				// log.Println("Error: Unable to sendWithConn operation to node while broadcasting to", ip)
 				return
 			}
 		}()
